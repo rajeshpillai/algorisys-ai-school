@@ -89,23 +89,32 @@
 - [x] Pass user-provided keys to LLM client instead of server env vars
 
 ## Testing
-- [ ] Adopt TDD for all new features going forward
-- [ ] Add retrospective tests for existing features:
-  - [ ] Backend: Session GenServer lifecycle (start, message, state transitions)
-  - [ ] Backend: Curriculum planner agent (plan generation, time extraction)
-  - [ ] Backend: Store module (create, save, load, append)
-  - [ ] Backend: LLM streaming (chunk parsing, callback delivery)
-  - [ ] Backend: Orchestrator / SceneEngine / RoleSynthesis agents
+- [x] Adopt TDD for all new features going forward (policy in CLAUDE.md)
+- [x] Add retrospective tests for existing features:
+  - [x] Backend: Session GenServer lifecycle (start, message, state transitions) — 20 tests
+  - [x] Backend: Curriculum planner agent (plan generation, time extraction) — 9 tests
+  - [x] Backend: Store module (create, save, load, append) — 15 tests
+  - [x] Backend: LearnerState (to_map, from_map, round-trip) — 6 tests
+  - [x] Backend: LLM streaming (chunk parsing, callback delivery) — 13 tests
+  - [x] Backend: LLM client (code fences, JSON injection, providers) — 9 tests
+  - [x] Backend: PromptBuilder (message builders, prompt loading) — 13 tests
+  - [x] Backend: Orchestrator / SceneEngine / RoleSynthesis agents — 15 tests
+  - [x] Backend: QuizGrader (single/multiple/short-answer grading) — 7 tests
   - [ ] Frontend: Classroom context (connect, send, progress updates)
   - [ ] Frontend: Chat stream rendering
-  - [ ] Integration: Landing → session → classroom end-to-end
+  - [x] Integration: Landing → session → classroom end-to-end (Playwright e2e)
+- [x] Playwright e2e test suite — 51 tests across 9 files
+- Backend: 116 tests (86 fast + 30 LLM integration), 0 failures
+- E2E: 51 Playwright tests covering health, landing, theme, settings, courses, classroom, navigation
 
 ## Integration & Verification
 - [x] Frontend proxies /api/* to Phoenix backend
-- [ ] Landing → start session → classroom stream works end-to-end
-- [ ] Agent messages stream via Phoenix Channel (no duplication)
+- [x] Landing → start session → classroom stream works end-to-end (e2e tested)
+- [x] Agent messages stream via Phoenix Channel (no duplication)
 - [x] Course browser displays curated content
 - [x] Light/dark theme toggle works
+- [x] Pause/resume control for curriculum auto-advance
+- [x] BYOK settings passed through full stack
 
 ---
 
