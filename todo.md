@@ -19,18 +19,19 @@
 - [x] Phoenix Channel stub (classroom channel)
 - [x] Session GenServer + DynamicSupervisor stubs
 - [x] Business logic module stubs (content, agents, llm)
-- [ ] Config: LLM API keys loaded from env vars
-- [ ] LLM client (`llm/client.ex`) — unified OpenAI/Anthropic/Ollama
-- [ ] LLM streaming (`llm/streaming.ex`) — SSE stream handling
-- [ ] Prompt builder (`llm/prompt_builder.ex`) — load system prompts, build messages
-- [ ] Content loader (`content/loader.ex`) — parse markdown + YAML frontmatter
+- [x] Config: LLM API keys loaded from env vars (runtime.exs)
+- [x] LLM client (`llm/client.ex`) — unified OpenAI/Anthropic/Ollama via Req
+- [x] LLM streaming (`llm/streaming.ex`) — SSE stream handling
+- [x] Prompt builder (`llm/prompt_builder.ex`) — load system prompts, build messages
+- [x] Content loader (`content/loader.ex`) — parse markdown + YAML frontmatter
+- [x] REST endpoints — content (course/lesson controllers wired to loader)
 - [ ] Classroom session GenServer — full implementation
 - [ ] Role synthesis service — call LLM with role-synthesis prompt
 - [ ] Orchestrator service — call LLM with orchestrator prompt
 - [ ] Scene engine service — call LLM with scene-engine prompt
 - [ ] Teaching agent service — execute scenes via LLM
 - [ ] Classroom channel — real-time agent message streaming
-- [ ] REST endpoints — full implementation (content, classroom)
+- [ ] REST endpoints — classroom (start/message/action)
 - [ ] DB migrations (sessions, learner state)
 
 ## Frontend (SolidJS + TailwindCSS v4)
@@ -58,11 +59,12 @@
 - [x] .gitignore
 - [x] AGPL-3.0 LICENSE
 - [x] README.md with setup instructions
+- [x] docs/dev-commands.md
 
 ## Content
-- [ ] Python Fundamentals course.yaml
-- [ ] Module 01: Getting Started (~3 lessons)
-- [ ] Module 02: Data Types (~2 lessons)
+- [x] Python Fundamentals course.yaml
+- [x] Module 01: Getting Started (3 lessons)
+- [x] Module 02: Data Types (2 lessons)
 
 ## Integration & Verification
 - [ ] Frontend proxies /api/* to Phoenix backend

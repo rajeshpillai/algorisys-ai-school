@@ -1,0 +1,12 @@
+id: python-fundamentals
+subject: programming
+title: Python Fundamentals
+description: Learn Python from scratch through interactive AI-guided lessons
+language: python
+modules:
+  - id: module-01-getting-started
+    title: Getting Started
+    sequence: 1
+  - id: module-02-data-types
+    title: Data Types and Variables
+    sequence: 2

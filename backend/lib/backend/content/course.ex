@@ -1,16 +1,8 @@
 defmodule Backend.Content.Course do
-  @moduledoc """
-  Represents a course with its metadata and module structure.
-  """
+  @moduledoc "Represents a course with its modules and metadata"
 
-  defstruct [
-    :id,
-    :subject,
-    :title,
-    :description,
-    :language,
-    modules: []
-  ]
+  @derive {Jason.Encoder, only: [:id, :subject, :title, :description, :language, :modules]}
+  defstruct [:id, :subject, :title, :description, :language, modules: []]
 
   @type t :: %__MODULE__{
           id: String.t() | nil,
@@ -20,4 +12,15 @@ defmodule Backend.Content.Course do
           language: String.t() | nil,
           modules: list()
         }
+
+  defmodule Module do
+    @derive {Jason.Encoder, only: [:id, :title, :sequence, :lessons]}
+    defstruct [:id, :title, :sequence, lessons: []]
+  end
+
+  defmodule LessonSummary do
+    @derive {Jason.Encoder,
+             only: [:id, :title, :sequence, :difficulty, :estimated_minutes, :activity_types]}
+    defstruct [:id, :title, :sequence, :difficulty, :estimated_minutes, :activity_types]
+  end
 end
