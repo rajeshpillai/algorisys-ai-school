@@ -43,4 +43,22 @@ defmodule Backend.Classroom.LearnerState do
       recent_errors: state.recent_errors
     }
   end
+
+  @doc "Rebuild a LearnerState struct from a JSONB map (string keys)."
+  def from_map(nil), do: %__MODULE__{}
+
+  def from_map(map) when is_map(map) do
+    %__MODULE__{
+      understanding_score: map["understanding_score"] || 50,
+      confidence: map["confidence"] || 50,
+      fatigue: map["fatigue"] || 0,
+      known_concepts: map["known_concepts"] || [],
+      misconceptions: map["misconceptions"] || [],
+      preferred_style: map["preferred_style"] || "examples",
+      time_remaining: map["time_remaining"],
+      topics_completed: map["topics_completed"] || [],
+      quiz_history: map["quiz_history"] || [],
+      recent_errors: map["recent_errors"] || []
+    }
+  end
 end

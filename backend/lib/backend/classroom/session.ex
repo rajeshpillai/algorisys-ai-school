@@ -10,7 +10,7 @@ defmodule Backend.Classroom.Session do
   require Logger
 
   alias Backend.Agents.{RoleSynthesis, Orchestrator, SceneEngine, TeachingAgent}
-  alias Backend.Classroom.LearnerState
+  alias Backend.Classroom.{LearnerState, Store}
 
   defstruct [
     :id,
@@ -60,17 +60,27 @@ defmodule Backend.Classroom.Session do
     goal = Keyword.fetch!(opts, :goal)
     learner_profile = Keyword.get(opts, :learner_profile)
 
-    state = %__MODULE__{
-      id: session_id,
-      goal: goal,
-      learner_profile: learner_profile,
-      state: :initializing
-    }
+    case Store.load_session(session_id) do
+      nil ->
+        # New session — persist and start pipeline
+        Store.create_session(session_id, goal, learner_profile)
 
-    # Start the pipeline asynchronously in a Task
-    spawn_pipeline(state)
+        state = %__MODULE__{
+          id: session_id,
+          goal: goal,
+          learner_profile: learner_profile,
+          state: :initializing
+        }
 
-    {:ok, state}
+        spawn_pipeline(state)
+        {:ok, state}
+
+      persisted ->
+        # Resume from DB
+        state = rebuild_from_persisted(persisted)
+        Logger.info("Resumed session #{session_id} from database")
+        {:ok, state}
+    end
   end
 
   @impl true
@@ -94,13 +104,8 @@ defmodule Backend.Classroom.Session do
     user_msg = %{role: "user", content: content}
     new_state = %{state | messages: state.messages ++ [user_msg], state: :teaching}
 
-    broadcast(state.id, {:agent_message, %{
-      id: generate_id(),
-      agent_name: "Learner",
-      agent_role: "learner",
-      content: content,
-      timestamp: System.system_time(:millisecond)
-    }})
+    # Persist user message
+    Store.append_message(state.id, "user", content)
 
     # Spawn next turn pipeline in a task
     spawn_next_turn(new_state)
@@ -136,6 +141,7 @@ defmodule Backend.Classroom.Session do
       state: :teaching
     }
 
+    Store.save_state(new_state)
     spawn_teaching(new_state, selected_agent, scene_spec)
 
     {:noreply, new_state}
@@ -155,6 +161,7 @@ defmodule Backend.Classroom.Session do
       state: :teaching
     }
 
+    Store.save_state(new_state)
     spawn_teaching(new_state, selected_agent, scene_spec)
 
     {:noreply, new_state}
@@ -163,16 +170,13 @@ defmodule Backend.Classroom.Session do
   def handle_info({:teaching_done, agent_name, agent_role, full_text}, state) do
     agent_msg = %{role: "assistant", content: full_text}
     new_messages = state.messages ++ [agent_msg]
+    new_state = %{state | messages: new_messages, state: :waiting}
 
-    broadcast(state.id, {:agent_message, %{
-      id: generate_id(),
-      agent_name: agent_name,
-      agent_role: agent_role,
-      content: full_text,
-      timestamp: System.system_time(:millisecond)
-    }})
+    # Persist assistant message and updated state
+    Store.append_message(state.id, "assistant", full_text, agent_name, agent_role)
+    Store.save_state(new_state)
 
-    {:noreply, %{state | messages: new_messages, state: :waiting}}
+    {:noreply, new_state}
   end
 
   def handle_info({:teaching_error, _reason}, state) do
@@ -199,13 +203,13 @@ defmodule Backend.Classroom.Session do
     learner_state = state.learner_state
 
     Task.start(fn ->
-      broadcast(session_id, {:agent_message, %{
+      broadcast(session_id, "agent_message", %{
         id: generate_id(),
         agent_name: "System",
         agent_role: "system",
         content: "Setting up your personalized learning session...",
         timestamp: System.system_time(:millisecond)
-      }})
+      })
 
       # Step 1: Role Synthesis
       agents =
@@ -213,13 +217,13 @@ defmodule Backend.Classroom.Session do
           {:ok, agents} ->
             Logger.info("Generated #{length(agents)} agents")
 
-            broadcast(session_id, {:agent_message, %{
+            broadcast(session_id, "agent_message", %{
               id: generate_id(),
               agent_name: "System",
               agent_role: "system",
               content: "Assembled a team of #{length(agents)} specialists: #{Enum.map_join(agents, ", ", & &1["name"])}",
               timestamp: System.system_time(:millisecond)
-            }})
+            })
 
             agents
 
@@ -336,35 +340,30 @@ defmodule Backend.Classroom.Session do
     Task.start(fn ->
       callback = fn
         {:chunk, text} ->
-          Phoenix.PubSub.broadcast(
-            Backend.PubSub,
-            "classroom:#{session_id}",
-            {:agent_chunk, %{agent_name: agent_name, content: text}}
-          )
+          broadcast(session_id, "agent_chunk", %{
+            agent_name: agent_name,
+            agent_role: agent_role,
+            content: text
+          })
 
         {:done, full_text} ->
-          send(gen_server_pid, {:teaching_done, agent_name, agent_role, full_text})
+          broadcast(session_id, "agent_done", %{
+            agent_name: agent_name,
+            agent_role: agent_role
+          })
 
-          Phoenix.PubSub.broadcast(
-            Backend.PubSub,
-            "classroom:#{session_id}",
-            {:agent_done, %{agent_name: agent_name}}
-          )
+          send(gen_server_pid, {:teaching_done, agent_name, agent_role, full_text})
 
         {:error, reason} ->
           Logger.error("Teaching agent streaming error: #{inspect(reason)}")
 
-          Phoenix.PubSub.broadcast(
-            Backend.PubSub,
-            "classroom:#{session_id}",
-            {:agent_message, %{
-              id: generate_id(),
-              agent_name: "System",
-              agent_role: "system",
-              content: "An error occurred during teaching. Please try sending a message.",
-              timestamp: System.system_time(:millisecond)
-            }}
-          )
+          broadcast(session_id, "agent_message", %{
+            id: generate_id(),
+            agent_name: "System",
+            agent_role: "system",
+            content: "An error occurred during teaching. Please try sending a message.",
+            timestamp: System.system_time(:millisecond)
+          })
 
           send(gen_server_pid, {:teaching_error, reason})
       end
@@ -379,10 +378,34 @@ defmodule Backend.Classroom.Session do
     end)
   end
 
+  # --- Persistence Helpers ---
+
+  defp rebuild_from_persisted(persisted) do
+    messages =
+      Enum.map(persisted.messages, fn m ->
+        %{role: m.role, content: m.content}
+      end)
+
+    %__MODULE__{
+      id: persisted.id,
+      goal: persisted.goal,
+      learner_profile: persisted.learner_profile,
+      agents: persisted.agents || [],
+      messages: messages,
+      learner_state: LearnerState.from_map(persisted.learner_state),
+      current_scene: persisted.current_scene,
+      current_scene_spec: persisted.current_scene_spec,
+      current_topic: persisted.current_topic,
+      current_agent: persisted.current_agent,
+      orchestrator_decision: persisted.orchestrator_decision,
+      state: String.to_existing_atom(persisted.state || "waiting")
+    }
+  end
+
   # --- Helpers ---
 
-  defp broadcast(session_id, message) do
-    Phoenix.PubSub.broadcast(Backend.PubSub, "classroom:#{session_id}", message)
+  defp broadcast(session_id, event, payload) do
+    BackendWeb.Endpoint.broadcast("classroom:#{session_id}", event, payload)
   end
 
   defp generate_id do

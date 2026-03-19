@@ -25,14 +25,17 @@
 - [x] Prompt builder (`llm/prompt_builder.ex`) — load system prompts, build messages
 - [x] Content loader (`content/loader.ex`) — parse markdown + YAML frontmatter
 - [x] REST endpoints — content (course/lesson controllers wired to loader)
-- [ ] Classroom session GenServer — full implementation
-- [ ] Role synthesis service — call LLM with role-synthesis prompt
-- [ ] Orchestrator service — call LLM with orchestrator prompt
-- [ ] Scene engine service — call LLM with scene-engine prompt
-- [ ] Teaching agent service — execute scenes via LLM
-- [ ] Classroom channel — real-time agent message streaming
-- [ ] REST endpoints — classroom (start/message/action)
-- [ ] DB migrations (sessions, learner state)
+- [x] Classroom session GenServer — full implementation
+- [x] Role synthesis service — call LLM with role-synthesis prompt
+- [x] Orchestrator service — call LLM with orchestrator prompt
+- [x] Scene engine service — call LLM with scene-engine prompt
+- [x] Teaching agent service — execute scenes via LLM
+- [x] Classroom channel — real-time agent message streaming
+- [x] REST endpoints — classroom (start/message/action)
+- [x] DB migrations (sessions, messages tables)
+- [x] Ecto schemas (Session, Message)
+- [x] Store module — persistence boundary (create, save, load, append)
+- [x] Session GenServer — persist at state transitions, resume from DB
 
 ## Frontend (SolidJS + TailwindCSS v4)
 - [x] Vite + SolidJS + TailwindCSS v4 scaffold
@@ -47,11 +50,11 @@
 - [x] Content components: markdown-content, slide-viewer, quiz-panel
 - [x] Playground components: code-panel, output-panel, resize-handle
 - [x] Common components: loading-spinner, modal
-- [ ] Phoenix Channel client integration
-- [ ] Course browser page — fetch + display courses from API
-- [ ] Lesson page — tabbed view with content/classroom tabs
-- [ ] Classroom page — connect to channel, stream agent messages
-- [ ] Landing page — wire "Start Learning" to API
+- [x] Phoenix Channel client integration
+- [x] Course browser page — fetch + display courses from API
+- [x] Lesson page — tabbed view with content/classroom tabs
+- [x] Classroom page — connect to channel, stream agent messages
+- [x] Landing page — wire "Start Learning" to API
 
 ## Infrastructure
 - [x] docker-compose.yml (PostgreSQL 17)
@@ -66,9 +69,23 @@
 - [x] Module 01: Getting Started (3 lessons)
 - [x] Module 02: Data Types (2 lessons)
 
+## Curriculum-Driven Progression
+- [ ] Wire curriculum planner agent into pipeline (prompt exists, not called)
+- [ ] Generate structured syllabus on session start (topics, time allocation, sequence)
+- [ ] Track curriculum progress in session state (current topic index, time spent, topics remaining)
+- [ ] Auto-advance on scene complete — orchestrator initiates next topic without user prompt
+- [ ] Persist curriculum plan in session (DB: add curriculum_plan JSONB column)
+- [ ] Show progress indicator in classroom UI (e.g. "Topic 2/8 — Derivatives", time remaining)
+
+## User Settings
+- [ ] Allow users to set their own LLM API keys (provider, key) via UI
+- [ ] Settings page — form for API key entry, provider selection (OpenAI/Anthropic/Ollama)
+- [ ] Backend endpoint to store/validate keys per user session
+- [ ] Pass user-provided keys to LLM client instead of server env vars
+
 ## Integration & Verification
-- [ ] Frontend proxies /api/* to Phoenix backend
+- [x] Frontend proxies /api/* to Phoenix backend
 - [ ] Landing → start session → classroom stream works end-to-end
-- [ ] Agent messages stream via Phoenix Channel
-- [ ] Course browser displays curated content
-- [ ] Light/dark theme toggle works
+- [ ] Agent messages stream via Phoenix Channel (no duplication)
+- [x] Course browser displays curated content
+- [x] Light/dark theme toggle works
