@@ -1,6 +1,6 @@
 import { createContext, useContext, createSignal, createEffect, onCleanup, ParentComponent } from 'solid-js';
-import { joinClassroom, sendMessage, leaveClassroom } from '../lib/channel-client';
-import type { AgentMessage, AgentRole, CurriculumProgress } from '../lib/types';
+import { joinClassroom, sendMessage, sendAction, leaveClassroom } from '../lib/channel-client';
+import type { AgentMessage, AgentRole, CurriculumProgress, AdvancePrompt } from '../lib/types';
 import type { Channel } from 'phoenix';
 
 interface ClassroomContextValue {
@@ -11,8 +11,11 @@ interface ClassroomContextValue {
   streamingContent: () => string;
   isConnected: () => boolean;
   progress: () => CurriculumProgress | null;
+  advancePrompt: () => AdvancePrompt | null;
   connect: (sessionId: string) => void;
   send: (content: string) => void;
+  confirmAdvance: () => void;
+  dismissAdvance: () => void;
   disconnect: () => void;
 }
 
@@ -26,6 +29,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
   const [streamingContent, setStreamingContent] = createSignal('');
   const [isConnected, setIsConnected] = createSignal(false);
   const [progress, setProgress] = createSignal<CurriculumProgress | null>(null);
+  const [advancePrompt, setAdvancePrompt] = createSignal<AdvancePrompt | null>(null);
 
   let channel: Channel | null = null;
   let streamingRole = '';
@@ -42,6 +46,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
     setStreamingAgent(null);
     setStreamingContent('');
     setProgress(null);
+    setAdvancePrompt(null);
 
     channel = joinClassroom(id, {
       onAgentMessage: (msg: any) => {
@@ -60,6 +65,9 @@ export const ClassroomProvider: ParentComponent = (props) => {
       },
 
       onAgentChunk: (chunk: any) => {
+        // Dismiss advance prompt when teaching resumes
+        if (advancePrompt()) setAdvancePrompt(null);
+
         const agentName = chunk.agent_name || chunk.agent || 'Agent';
         if (streamingAgent() !== agentName) {
           setStreamingAgent(agentName);
@@ -97,6 +105,15 @@ export const ClassroomProvider: ParentComponent = (props) => {
           current_lesson_index: data.current_lesson_index || 0,
         });
       },
+
+      onAdvancePrompt: (data: any) => {
+        setAdvancePrompt({
+          next_topic: data.next_topic || 'Next topic',
+          completed_lessons: data.completed_lessons || 0,
+          total_lessons: data.total_lessons || 0,
+          timeout_seconds: data.timeout_seconds || 30,
+        });
+      },
     });
 
     setIsConnected(true);
@@ -104,6 +121,9 @@ export const ClassroomProvider: ParentComponent = (props) => {
 
   const send = (content: string) => {
     if (!channel) return;
+
+    // Dismiss advance prompt if user sends a question instead
+    setAdvancePrompt(null);
 
     const userMsg: AgentMessage = {
       id: crypto.randomUUID(),
@@ -115,6 +135,16 @@ export const ClassroomProvider: ParentComponent = (props) => {
     setMessages((prev) => [...prev, userMsg]);
 
     sendMessage(channel, content);
+  };
+
+  const confirmAdvance = () => {
+    if (!channel) return;
+    setAdvancePrompt(null);
+    sendAction(channel, 'continue');
+  };
+
+  const dismissAdvance = () => {
+    setAdvancePrompt(null);
   };
 
   const disconnect = () => {
@@ -143,8 +173,11 @@ export const ClassroomProvider: ParentComponent = (props) => {
         streamingContent,
         isConnected,
         progress,
+        advancePrompt,
         connect,
         send,
+        confirmAdvance,
+        dismissAdvance,
         disconnect,
       }}
     >

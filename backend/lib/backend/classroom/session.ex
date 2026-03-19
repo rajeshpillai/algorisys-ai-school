@@ -113,7 +113,7 @@ defmodule Backend.Classroom.Session do
 
   @impl true
   def handle_cast({:message, content}, %{state: session_state} = state)
-      when session_state in [:waiting, :ready] do
+      when session_state in [:waiting, :ready, :awaiting_advance] do
     user_msg = %{role: "user", content: content}
     new_state = %{state | messages: state.messages ++ [user_msg], state: :teaching}
 
@@ -129,6 +129,11 @@ defmodule Backend.Classroom.Session do
   def handle_cast({:message, _content}, state) do
     Logger.warning("Message received while session is in state: #{state.state}")
     {:noreply, state}
+  end
+
+  def handle_cast({:action, "continue"}, %{state: :awaiting_advance} = state) do
+    Logger.info("User confirmed advance for session #{state.id}")
+    do_advance(state)
   end
 
   def handle_cast({:action, action}, state) do
@@ -201,31 +206,45 @@ defmodule Backend.Classroom.Session do
     # Broadcast progress update to frontend
     broadcast_progress(new_state)
 
-    # Auto-advance to next lesson if curriculum has more topics
-    maybe_auto_advance(new_state)
+    # Check if more lessons — transition to awaiting_advance if so
+    new_state =
+      case maybe_auto_advance(new_state) do
+        {:ok, :awaiting_advance} -> %{new_state | state: :awaiting_advance}
+        _ -> new_state
+      end
 
     {:noreply, new_state}
   end
 
-  def handle_info(:auto_advance, %{state: :waiting} = state) do
+  def handle_info(:prompt_advance, %{state: :awaiting_advance} = state) do
     {total, completed} = curriculum_progress(state)
-    Logger.info("Auto-advancing: lesson #{completed + 1}/#{total} — #{state.current_topic}")
+    Logger.info("Prompting advance: lesson #{completed + 1}/#{total} — #{state.current_topic}")
 
-    broadcast(state.id, "agent_message", %{
-      id: generate_id(),
-      agent_name: "System",
-      agent_role: "system",
-      content: "Moving to next topic: **#{state.current_topic}** (#{completed + 1}/#{total})",
-      timestamp: System.system_time(:millisecond)
+    broadcast(state.id, "advance_prompt", %{
+      next_topic: state.current_topic,
+      completed_lessons: completed,
+      total_lessons: total,
+      current_module_index: state.current_module_index,
+      current_lesson_index: state.current_lesson_index,
+      timeout_seconds: 30
     })
 
-    new_state = %{state | state: :teaching}
-    spawn_next_turn(new_state)
-    {:noreply, new_state}
+    # Auto-advance after 30s if user doesn't respond
+    Process.send_after(self(), :auto_advance_timeout, 30_000)
+    {:noreply, state}
   end
 
-  def handle_info(:auto_advance, state) do
-    # If not in waiting state, ignore (teaching is already in progress)
+  def handle_info(:prompt_advance, state) do
+    {:noreply, state}
+  end
+
+  def handle_info(:auto_advance_timeout, %{state: :awaiting_advance} = state) do
+    Logger.info("Auto-advance timeout — proceeding to next topic")
+    do_advance(state)
+  end
+
+  def handle_info(:auto_advance_timeout, state) do
+    # Already advanced or user responded — ignore
     {:noreply, state}
   end
 
@@ -457,6 +476,22 @@ defmodule Backend.Classroom.Session do
     end)
   end
 
+  defp do_advance(state) do
+    {total, completed} = curriculum_progress(state)
+
+    broadcast(state.id, "agent_message", %{
+      id: generate_id(),
+      agent_name: "System",
+      agent_role: "system",
+      content: "Moving to next topic: **#{state.current_topic}** (#{completed + 1}/#{total})",
+      timestamp: System.system_time(:millisecond)
+    })
+
+    new_state = %{state | state: :teaching}
+    spawn_next_turn(new_state)
+    {:noreply, new_state}
+  end
+
   # --- Curriculum Helpers ---
 
   defp get_lesson_topic(nil, _mod_idx, _lesson_idx), do: nil
@@ -513,14 +548,15 @@ defmodule Backend.Classroom.Session do
 
   defp advance_curriculum(state), do: state
 
-  defp maybe_auto_advance(%{curriculum_plan: nil}), do: :ok
+  defp maybe_auto_advance(%{curriculum_plan: nil}), do: {:ok, :no_curriculum}
 
   defp maybe_auto_advance(state) do
     {total, completed} = curriculum_progress(state)
 
     if completed < total do
-      # Brief pause before auto-advancing so the user can read
-      Process.send_after(self(), :auto_advance, 2_000)
+      # Brief pause before showing the advance prompt so user can read
+      Process.send_after(self(), :prompt_advance, 2_000)
+      {:ok, :awaiting_advance}
     else
       broadcast(state.id, "agent_message", %{
         id: generate_id(),
@@ -529,9 +565,9 @@ defmodule Backend.Classroom.Session do
         content: "Curriculum complete! You've covered all #{total} lessons. Great work!",
         timestamp: System.system_time(:millisecond)
       })
-    end
 
-    :ok
+      {:ok, :complete}
+    end
   end
 
   defp broadcast_progress(state) do

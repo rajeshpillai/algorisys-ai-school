@@ -19,6 +19,7 @@ export function joinClassroom(
     onAgentChunk: (chunk: any) => void;
     onAgentDone: (data: any) => void;
     onCurriculumProgress?: (data: any) => void;
+    onAdvancePrompt?: (data: any) => void;
   }
 ): Channel {
   const s = getSocket();
@@ -30,6 +31,9 @@ export function joinClassroom(
   if (callbacks.onCurriculumProgress) {
     channel.on('curriculum_progress', callbacks.onCurriculumProgress);
   }
+  if (callbacks.onAdvancePrompt) {
+    channel.on('advance_prompt', callbacks.onAdvancePrompt);
+  }
 
   channel.join()
     .receive('ok', () => console.log('Joined classroom:', sessionId))
@@ -40,6 +44,10 @@ export function joinClassroom(
 
 export function sendMessage(channel: Channel, content: string) {
   channel.push('send_message', { content });
+}
+
+export function sendAction(channel: Channel, action: string) {
+  channel.push('send_action', { action });
 }
 
 export function leaveClassroom(channel: Channel) {

@@ -1,11 +1,12 @@
 import { useParams } from '@solidjs/router';
-import { onMount, onCleanup } from 'solid-js';
+import { onMount, onCleanup, Show } from 'solid-js';
 import TopBar from '../components/layout/top-bar';
 import { ClassroomProvider, useClassroom } from '../context/classroom-context';
 import ChatStream from '../components/classroom/chat-stream';
 import ParticipantList from '../components/classroom/participant-list';
 import UserInput from '../components/classroom/user-input';
 import CurriculumProgressBar from '../components/classroom/curriculum-progress';
+import AdvancePromptCard from '../components/classroom/advance-prompt';
 
 function ClassroomContent() {
   const params = useParams<{ sessionId: string }>();
@@ -35,6 +36,13 @@ function ClassroomContent() {
               streamingContent={classroom.streamingContent()}
               agents={classroom.agents()}
             />
+            <Show when={classroom.advancePrompt()}>
+              <AdvancePromptCard
+                prompt={classroom.advancePrompt()!}
+                onContinue={() => classroom.confirmAdvance()}
+                onDismiss={() => classroom.dismissAdvance()}
+              />
+            </Show>
             <UserInput
               onSend={(content) => classroom.send(content)}
               disabled={!!classroom.streamingAgent()}

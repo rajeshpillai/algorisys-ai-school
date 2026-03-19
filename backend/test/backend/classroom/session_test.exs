@@ -126,7 +126,7 @@ defmodule Backend.Classroom.SessionTest do
   end
 
   describe "handle_info :teaching_done" do
-    test "appends message, advances curriculum, transitions to waiting" do
+    test "appends message, advances curriculum, transitions to awaiting_advance" do
       id = unique_id()
       pid = start_session(id, "Learn physics")
 
@@ -155,7 +155,8 @@ defmodule Backend.Classroom.SessionTest do
       Process.sleep(50)
 
       state = get_raw_state(pid)
-      assert state.state == :waiting
+      # Now transitions to :awaiting_advance instead of :waiting (user confirmation needed)
+      assert state.state == :awaiting_advance
       assert length(state.messages) == 1
       assert hd(state.messages).content == "Newton's first law states that..."
       # Curriculum should have advanced to next lesson
@@ -402,6 +403,127 @@ defmodule Backend.Classroom.SessionTest do
 
       result = Session.get_state(id)
       assert result.curriculum.completed_lessons == 1
+    end
+  end
+
+  describe "advance confirmation" do
+    test "teaching_done with curriculum transitions to awaiting_advance" do
+      id = unique_id()
+      pid = start_session(id, "Learn CSS")
+
+      curriculum = %{
+        "modules" => [
+          %{"title" => "Layout", "lessons" => [
+            %{"title" => "Flexbox"},
+            %{"title" => "Grid"}
+          ]}
+        ]
+      }
+
+      send(pid, {:pipeline_started,
+        [%{"name" => "CSS Expert", "type" => "teaching"}],
+        %{"next_action" => %{"agent" => "CSS Expert", "scene" => "lecture"},
+          "state_updates" => %{"focus_topic" => "Flexbox"}},
+        %{"scene" => %{"type" => "lecture"}},
+        %{"name" => "CSS Expert", "type" => "teaching"},
+        curriculum
+      })
+      Process.sleep(50)
+
+      send(pid, {:teaching_done, "CSS Expert", "teaching", "Flexbox explained..."})
+      Process.sleep(50)
+
+      assert get_raw_state(pid).state == :awaiting_advance
+    end
+
+    test "continue action triggers advance from awaiting_advance" do
+      id = unique_id()
+      pid = start_session(id, "Learn JS")
+
+      curriculum = %{
+        "modules" => [
+          %{"title" => "Basics", "lessons" => [
+            %{"title" => "Variables"},
+            %{"title" => "Functions"}
+          ]}
+        ]
+      }
+
+      send(pid, {:pipeline_started,
+        [%{"name" => "JS Coach", "type" => "teaching"}],
+        %{"next_action" => %{"agent" => "JS Coach", "scene" => "lecture"},
+          "state_updates" => %{"focus_topic" => "Variables"}},
+        %{"scene" => %{"type" => "lecture"}},
+        %{"name" => "JS Coach", "type" => "teaching"},
+        curriculum
+      })
+      Process.sleep(50)
+
+      send(pid, {:teaching_done, "JS Coach", "teaching", "Variables explained..."})
+      Process.sleep(50)
+      assert get_raw_state(pid).state == :awaiting_advance
+
+      # User confirms advance
+      Session.send_action(id, "continue")
+      Process.sleep(50)
+
+      assert get_raw_state(pid).state == :teaching
+    end
+
+    test "user can send message during awaiting_advance" do
+      id = unique_id()
+      pid = start_session(id, "Learn SQL")
+
+      curriculum = %{
+        "modules" => [
+          %{"title" => "Queries", "lessons" => [
+            %{"title" => "SELECT"},
+            %{"title" => "WHERE"}
+          ]}
+        ]
+      }
+
+      send(pid, {:pipeline_started,
+        [%{"name" => "DB Expert", "type" => "teaching"}],
+        %{"next_action" => %{"agent" => "DB Expert", "scene" => "lecture"},
+          "state_updates" => %{"focus_topic" => "SELECT"}},
+        %{"scene" => %{"type" => "lecture"}},
+        %{"name" => "DB Expert", "type" => "teaching"},
+        curriculum
+      })
+      Process.sleep(50)
+
+      send(pid, {:teaching_done, "DB Expert", "teaching", "SELECT explained..."})
+      Process.sleep(50)
+      assert get_raw_state(pid).state == :awaiting_advance
+
+      # User asks follow-up question instead of continuing
+      Session.send_message(id, "Can you explain JOINs?")
+      Process.sleep(50)
+
+      state = get_raw_state(pid)
+      assert state.state == :teaching
+      assert length(state.messages) == 2
+    end
+
+    test "teaching_done without curriculum stays in waiting" do
+      id = unique_id()
+      pid = start_session(id, "Learn Docker")
+
+      send(pid, {:pipeline_started,
+        [%{"name" => "DevOps Guide", "type" => "teaching"}],
+        %{"next_action" => %{"agent" => "DevOps Guide", "scene" => "lecture"},
+          "state_updates" => %{"focus_topic" => "Containers"}},
+        %{"scene" => %{"type" => "lecture"}},
+        %{"name" => "DevOps Guide", "type" => "teaching"},
+        nil
+      })
+      Process.sleep(50)
+
+      send(pid, {:teaching_done, "DevOps Guide", "teaching", "Containers explained..."})
+      Process.sleep(50)
+
+      assert get_raw_state(pid).state == :waiting
     end
   end
 end

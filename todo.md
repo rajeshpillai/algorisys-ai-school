@@ -77,10 +77,10 @@
 - [x] Persist curriculum plan in session (DB: add curriculum_plan JSONB column)
 - [x] Broadcast curriculum_progress event to frontend
 - [x] Show progress indicator in classroom UI (progress bar + topic/count)
-- [ ] Auto-advance should ask for confirmation before moving to next topic/chapter
+- [x] Auto-advance should ask for confirmation before moving to next topic/chapter
   - Show "Ready for next topic?" prompt with Continue / Ask Question buttons
   - Let user ask follow-up questions before advancing
-  - Only auto-advance after user confirms (or configurable timeout)
+  - Only auto-advance after user confirms (or configurable 30s timeout)
 
 ## User Settings
 - [ ] Allow users to set their own LLM API keys (provider, key) via UI

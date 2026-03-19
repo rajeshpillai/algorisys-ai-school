@@ -32,6 +32,6 @@ defmodule Backend.Classroom.Schemas.Session do
       :curriculum_plan, :current_module_index, :current_lesson_index
     ])
     |> validate_required([:id, :goal, :state, :learner_state])
-    |> validate_inclusion(:state, ~w(initializing teaching waiting))
+    |> validate_inclusion(:state, ~w(initializing teaching waiting awaiting_advance))
   end
 end

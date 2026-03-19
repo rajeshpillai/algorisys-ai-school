@@ -85,6 +85,13 @@ export interface CurriculumProgress {
   current_lesson_index: number;
 }
 
+export interface AdvancePrompt {
+  next_topic: string;
+  completed_lessons: number;
+  total_lessons: number;
+  timeout_seconds: number;
+}
+
 export interface LearnerProfile {
   background: string;
   level: 'beginner' | 'intermediate' | 'advanced';
