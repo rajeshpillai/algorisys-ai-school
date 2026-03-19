@@ -80,12 +80,30 @@ Set in `backend/.env`:
 - `DATABASE_URL` (prod only)
 - `SECRET_KEY_BASE` (prod only)
 
+## Testing Policy
+
+- **TDD for all new features**: Write tests first (red → green → refactor) before implementing any new functionality
+- **Retrospective TDD for existing features**: Existing code that lacks tests must have tests added in TDD style — write a failing test that captures the expected behavior, then verify it passes against the existing implementation
+- **Backend tests**: `cd backend && mix test` — use ExUnit with async where possible
+- **Frontend tests**: Component and integration tests for UI behavior
+- **No code merges without tests**: Every PR must include tests for the changes it introduces
+
 ## Key Architecture Decisions
 
 - **Dynamic agents**: Agents are NOT predefined — Role Synthesis generates a unique team per session based on learner profile and goal
 - **GenServer per session**: Each classroom session is a supervised OTP process for stateful agent orchestration
 - **Dual content modes**: Curated markdown courses (kata-style) + free-form AI-generated sessions
 - **Streaming**: Agent responses stream to frontend via Phoenix Channels, not REST polling
+
+## Reference: OpenMAIC
+
+The [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) project (local copy at `/home/rajesh/opensource/OpenMAIC`) serves as feature reference. Key differences from our approach:
+- OpenMAIC uses React/Next.js + stateless chat; we use SolidJS + stateful GenServer sessions
+- OpenMAIC uses LangGraph for orchestration; we use Elixir OTP supervision trees
+- OpenMAIC generates all content at runtime; we support both curated content and AI-generated
+- OpenMAIC has static agent roles; we dynamically synthesize agents per session
+
+Use OpenMAIC for **feature inspiration only** — do not copy patterns or architecture.
 
 ## License
 

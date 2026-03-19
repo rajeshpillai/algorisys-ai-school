@@ -106,3 +106,102 @@
 - [ ] Agent messages stream via Phoenix Channel (no duplication)
 - [x] Course browser displays curated content
 - [x] Light/dark theme toggle works
+
+---
+
+## Phase 2 — Feature Gaps (informed by OpenMAIC analysis)
+
+### Voice & Speech
+- [ ] Text-to-Speech (TTS) for agent narration
+  - [ ] TTS provider abstraction (OpenAI TTS, browser SpeechSynthesis as fallback)
+  - [ ] Per-agent voice identity (same voice across session)
+  - [ ] Mute/unmute toggle, volume control, playback speed (0.75x–2x)
+- [ ] Speech-to-text (ASR) for user input
+  - [ ] Whisper API integration or browser SpeechRecognition
+  - [ ] Toggleable in settings
+
+### Interactive Scenes
+- [ ] Whiteboard / drawing canvas
+  - [ ] Agent-driven drawing (text, shapes, charts, formulas)
+  - [ ] Canvas-based rendering with undo/redo
+  - [ ] Multi-slide whiteboard support (one per scene)
+- [ ] HTML simulation scenes — agent-generated interactive demos embedded via iframe
+- [ ] Formula rendering — KaTeX for math/science subjects
+
+### Quiz & Grading Enhancements
+- [ ] Multiple question types: single-choice, multiple-choice, short-answer
+- [ ] AI grading for short-answer questions (LLM-based scoring + feedback)
+- [ ] Points-per-question scoring with summary view
+- [ ] Quiz cover screen showing question count and total points
+
+### Slide / Presentation Mode
+- [ ] Structured slide scenes (beyond chat — visual presentation of concepts)
+- [ ] Slide animations and transitions
+- [ ] Agent spotlight/laser pointer actions (highlight elements during teaching)
+- [ ] Auto-advance slides at scene boundaries
+
+### Content Input Methods
+- [ ] PDF upload and parsing — extract text + images, use as lesson source
+- [ ] Web search augmentation — enrich generated content with live web results
+
+### Export
+- [ ] Export session as PowerPoint (.pptx) — editable slides from teaching scenes
+- [ ] Export session as HTML — self-contained interactive replay
+- [ ] Export as PDF — printable lesson summary
+
+### Playback & Flow Control
+- [ ] Lecture playback mode — replay pre-recorded agent monologues + actions
+- [ ] Pause/resume mid-agent — soft-pause without ending session
+- [ ] Playback speed control (0.75x, 1x, 1.5x, 2x)
+- [ ] User can interrupt agent mid-response
+
+### Discussion Modes
+- [ ] Multi-agent roundtable discussions (multiple agents debate a topic)
+- [ ] Discussion initiator pattern (trigger agent speaks first, others respond)
+- [ ] Roundtable UI — bubble view showing who's speaking
+
+### User Profile & Personalization
+- [ ] User profile (avatar, nickname, bio/background)
+- [ ] Agents address user by name and tailor to stated background
+- [ ] Profile persisted in localStorage or DB
+
+### Messaging Platform Integration (OpenClaw-style)
+- [ ] Trigger classroom sessions from chat apps (Slack, Discord, Telegram)
+- [ ] Send session link back to user in chat
+- [ ] Webhook-based integration API
+
+### Internationalization
+- [ ] Multi-language UI support (English + additional languages)
+- [ ] Language-aware prompt generation (LLM calls include language parameter)
+
+### Session Management
+- [ ] Session list / history page — resume previous sessions
+- [ ] Share generated classroom via URL
+- [ ] Draft caching — unsent messages persist across page reloads
+
+## Phase 3 — Advanced Features
+
+### Project-Based Learning (PBL)
+- [ ] Issue board UI (Kanban-style task tracking)
+- [ ] Agent role assignments (management/development divisions)
+- [ ] Agent-to-agent collaboration within project context
+
+### Media Generation
+- [ ] Image generation for slides (provider-agnostic: OpenAI DALL-E, etc.)
+- [ ] Video generation / embedding in scenes
+- [ ] Placeholder elements during async media generation
+
+### Collaboration
+- [ ] Multi-learner classroom (multiple users via Phoenix Channels)
+- [ ] Shared whiteboard drawing
+- [ ] Real-time presence indicators
+
+### Analytics & Progress
+- [ ] Learning analytics dashboard (time spent, topics covered, quiz scores)
+- [ ] Learner model signals visible in UI (understanding level per topic)
+- [ ] Progress export (CSV/JSON)
+
+### Auth & Administration
+- [ ] User authentication (email/password + OAuth)
+- [ ] Admin panel (user management, API key management)
+- [ ] Credit/usage tracking system
