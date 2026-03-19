@@ -109,7 +109,7 @@
 
 ---
 
-## Phase 2 — Feature Gaps (informed by OpenMAIC analysis)
+## Phase 2 — Feature Gaps (informed by ProductX analysis)
 
 ### Voice & Speech
 - [ ] Text-to-Speech (TTS) for agent narration

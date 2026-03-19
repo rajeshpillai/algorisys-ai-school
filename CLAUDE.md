@@ -97,15 +97,15 @@ Set in `backend/.env`:
 - **Dual content modes**: Curated markdown courses (kata-style) + free-form AI-generated sessions
 - **Streaming**: Agent responses stream to frontend via Phoenix Channels, not REST polling
 
-## Reference: OpenMAIC
+## Reference: ProductX
 
-The [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) project (local copy at `/home/rajesh/opensource/OpenMAIC`) serves as feature reference. Key differences from our approach:
-- OpenMAIC uses React/Next.js + stateless chat; we use SolidJS + stateful GenServer sessions
-- OpenMAIC uses LangGraph for orchestration; we use Elixir OTP supervision trees
-- OpenMAIC generates all content at runtime; we support both curated content and AI-generated
-- OpenMAIC has static agent roles; we dynamically synthesize agents per session
+A reference product (local copy at `/home/rajesh/opensource/ProductX`) serves as feature inspiration. Key differences from our approach:
+- ProductX uses React/Next.js + stateless chat; we use SolidJS + stateful GenServer sessions
+- ProductX uses LangGraph for orchestration; we use Elixir OTP supervision trees
+- ProductX generates all content at runtime; we support both curated content and AI-generated
+- ProductX has static agent roles; we dynamically synthesize agents per session
 
-Use OpenMAIC for **feature inspiration only** — do not copy patterns or architecture.
+Use ProductX for **feature inspiration only** — do not copy patterns or architecture.
 
 ## License
 

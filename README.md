@@ -1,6 +1,6 @@
 # AI School
 
-An open-source multi-agent interactive learning platform inspired by [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC). AI School can teach **any subject** — programming, mathematics, history, science, languages — through dynamically generated AI agent teams that adapt to each learner.
+An open-source multi-agent interactive learning platform. AI School can teach **any subject** — programming, mathematics, history, science, languages — through dynamically generated AI agent teams that adapt to each learner.
 
 ## How It Works
 

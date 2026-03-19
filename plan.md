@@ -2,9 +2,9 @@
 
 ## Context
 
-We're building an open AI school platform inspired by [OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) — a multi-agent interactive classroom that can teach **any subject** (math, history, science, languages, programming, etc.), not just coding. Existing kata projects (react-katas, nodejs-katas, golang-katas, etc.) serve as reference for frontend patterns.
+We're building an open AI school platform — a multi-agent interactive classroom that can teach **any subject** (math, history, science, languages, programming, etc.), not just coding. Inspired by ProductX (a reference product). Existing kata projects (react-katas, nodejs-katas, golang-katas, etc.) serve as reference for frontend patterns.
 
-**Key difference from OpenMAIC**: OpenMAIC generates all content at runtime via LLM pipelines with static agent roles. We use a **dynamic agent generation system** — agents are synthesized per-session based on learner profile, topic, and constraints. Content can be curated (markdown) or AI-generated.
+**Key difference from ProductX**: ProductX generates all content at runtime via LLM pipelines with static agent roles. We use a **dynamic agent generation system** — agents are synthesized per-session based on learner profile, topic, and constraints. Content can be curated (markdown) or AI-generated.
 
 ---
 
