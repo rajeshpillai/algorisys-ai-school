@@ -81,10 +81,10 @@ User Request ("Teach me calculus in 6 hours")
 | `architect-agent.md` | Meta-level system design (design-time only) | Done |
 | `orchestrator-agent.md` | Runtime decision engine — picks next agent, scene, adaptation | Done |
 | `role-synthesis-agent.md` | Generates dynamic agent teams per learner/goal | Done |
-| `skill-execution.md` → rename to `scene-engine.md` | Designs structured learning scenes | Done (rename needed) |
-| `curriculum-planner.md` | Turns goals into structured learning plans | **To create** |
-| `teaching-agent.md` | Template for agents that deliver content in scenes | **To create** |
-| `learner-model.md` | Evaluates learner state, feeds signals to orchestrator | **To create** |
+| `scene-engine.md` | Designs structured learning scenes | Done |
+| `curriculum-planner.md` | Turns goals into structured learning plans | Done |
+| `teaching-agent.md` | Template for agents that deliver content in scenes | Done |
+| `learner-model.md` | Evaluates learner state, feeds signals to orchestrator | Done |
 
 ### Dynamic Agent Generation (not static roles)
 
@@ -360,7 +360,7 @@ print("Hello, World!")
 
 ## Implementation Phases
 
-### Phase 1 — MVP
+### Phase 1 — MVP (Complete)
 **Backend (Elixir)**:
 - Phoenix project setup with JSON API
 - Content loader (parse markdown + frontmatter from `content/` dir)
