@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+deps/
+_build/
+
+# Build output
+dist/
+priv/static/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Elixir
+*.beam
+*.ez
+erl_crash.dump
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+cover/
+coverage/
