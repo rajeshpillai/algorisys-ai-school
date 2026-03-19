@@ -148,6 +148,10 @@ export const ClassroomProvider: ParentComponent = (props) => {
 
   const dismissAdvance = () => {
     setAdvancePrompt(null);
+    // Tell backend to cancel the auto-advance timeout
+    if (channel) {
+      sendAction(channel, 'pause');
+    }
   };
 
   const togglePause = () => {

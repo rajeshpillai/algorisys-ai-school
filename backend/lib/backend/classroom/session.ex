@@ -136,6 +136,11 @@ defmodule Backend.Classroom.Session do
     do_advance(state)
   end
 
+  def handle_cast({:action, "pause"}, %{state: :awaiting_advance} = state) do
+    Logger.info("User paused auto-advance for session #{state.id}")
+    {:noreply, %{state | state: :waiting}}
+  end
+
   def handle_cast({:action, action}, state) do
     Logger.info("Action received: #{inspect(action)} for session #{state.id}")
     {:noreply, state}

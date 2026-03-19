@@ -506,6 +506,47 @@ defmodule Backend.Classroom.SessionTest do
       assert length(state.messages) == 2
     end
 
+    test "pause action cancels auto-advance" do
+      id = unique_id()
+      pid = start_session(id, "Learn Kotlin")
+
+      curriculum = %{
+        "modules" => [
+          %{"title" => "Basics", "lessons" => [
+            %{"title" => "Variables"},
+            %{"title" => "Functions"}
+          ]}
+        ]
+      }
+
+      send(pid, {:pipeline_started,
+        [%{"name" => "Kotlin Coach", "type" => "teaching"}],
+        %{"next_action" => %{"agent" => "Kotlin Coach", "scene" => "lecture"},
+          "state_updates" => %{"focus_topic" => "Variables"}},
+        %{"scene" => %{"type" => "lecture"}},
+        %{"name" => "Kotlin Coach", "type" => "teaching"},
+        curriculum
+      })
+      Process.sleep(50)
+
+      send(pid, {:teaching_done, "Kotlin Coach", "teaching", "Variables explained..."})
+      Process.sleep(50)
+      assert get_raw_state(pid).state == :awaiting_advance
+
+      # User clicks "Ask a Question" — sends pause action
+      Session.send_action(id, "pause")
+      Process.sleep(50)
+
+      assert get_raw_state(pid).state == :waiting
+
+      # The auto_advance_timeout should now be a no-op since state is :waiting
+      send(pid, :auto_advance_timeout)
+      Process.sleep(50)
+
+      # Should still be waiting, not teaching
+      assert get_raw_state(pid).state == :waiting
+    end
+
     test "teaching_done without curriculum stays in waiting" do
       id = unique_id()
       pid = start_session(id, "Learn Docker")
