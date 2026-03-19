@@ -4,11 +4,12 @@ defmodule Backend.Content.Loader do
 
   Content is organized as:
     content/
-      <subject>/
-        course.yaml
-        <module-dir>/
-          01-lesson.md
-          02-lesson.md
+      <subject>/                 (e.g. programming, mathematics)
+        <course>/                (e.g. python-fundamentals, rust-fundamentals)
+          course.yaml
+          <module-dir>/
+            01-lesson.md
+            02-lesson.md
   """
 
   alias Backend.Content.{Course, Lesson}
@@ -30,28 +31,14 @@ defmodule Backend.Content.Loader do
       {:ok, entries} ->
         subjects =
           entries
-          |> Enum.filter(fn entry ->
-            File.dir?(Path.join(base, entry)) and
-              File.exists?(Path.join([base, entry, "course.yaml"]))
-          end)
+          |> Enum.filter(&File.dir?(Path.join(base, &1)))
           |> Enum.sort()
           |> Enum.map(fn subject_dir ->
-            case load_course_yaml(Path.join([base, subject_dir, "course.yaml"])) do
-              {:ok, course} ->
-                %{
-                  subject: subject_dir,
-                  courses: [
-                    %{
-                      id: course.id,
-                      title: course.title,
-                      description: course.description,
-                      language: course.language
-                    }
-                  ]
-                }
+            subject_path = Path.join(base, subject_dir)
+            courses = scan_courses_in_subject(subject_path)
 
-              _ ->
-                nil
+            if courses != [] do
+              %{subject: subject_dir, courses: courses}
             end
           end)
           |> Enum.reject(&is_nil/1)
@@ -65,9 +52,7 @@ defmodule Backend.Content.Loader do
 
   @doc "Loads a specific course by its ID, including module and lesson summaries."
   def load_course(course_id) do
-    base = content_dir()
-
-    case find_course_dir(base, course_id) do
+    case find_course_dir(course_id) do
       {:ok, course_dir} ->
         course_yaml_path = Path.join(course_dir, "course.yaml")
 
@@ -83,9 +68,7 @@ defmodule Backend.Content.Loader do
 
   @doc "Loads a specific lesson by its ID."
   def load_lesson(lesson_id) do
-    base = content_dir()
-
-    case find_lesson_file(base, lesson_id) do
+    case find_lesson_file(lesson_id) do
       {:ok, file_path} ->
         parse_lesson_file(file_path)
 
@@ -96,31 +79,80 @@ defmodule Backend.Content.Loader do
 
   # --- Private helpers ---
 
-  defp find_course_dir(base, course_id) do
-    case File.ls(base) do
+  defp scan_courses_in_subject(subject_path) do
+    case File.ls(subject_path) do
       {:ok, entries} ->
-        result =
-          Enum.find(entries, fn entry ->
-            course_yaml = Path.join([base, entry, "course.yaml"])
+        entries
+        |> Enum.filter(fn entry ->
+          course_dir = Path.join(subject_path, entry)
 
-            if File.exists?(course_yaml) do
-              case YamlElixir.read_from_file(course_yaml) do
-                {:ok, %{"id" => ^course_id}} -> true
-                _ -> false
+          File.dir?(course_dir) and
+            File.exists?(Path.join(course_dir, "course.yaml"))
+        end)
+        |> Enum.sort()
+        |> Enum.map(fn course_dir_name ->
+          course_yaml = Path.join([subject_path, course_dir_name, "course.yaml"])
+
+          case load_course_yaml(course_yaml) do
+            {:ok, course} ->
+              %{
+                id: course.id,
+                title: course.title,
+                description: course.description,
+                language: course.language
+              }
+
+            _ ->
+              nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+
+      _ ->
+        []
+    end
+  end
+
+  defp find_course_dir(course_id) do
+    base = content_dir()
+
+    case File.ls(base) do
+      {:ok, subjects} ->
+        result =
+          Enum.find_value(subjects, fn subject ->
+            subject_path = Path.join(base, subject)
+
+            if File.dir?(subject_path) do
+              case File.ls(subject_path) do
+                {:ok, course_dirs} ->
+                  Enum.find_value(course_dirs, fn course_dir ->
+                    course_path = Path.join(subject_path, course_dir)
+                    course_yaml = Path.join(course_path, "course.yaml")
+
+                    if File.dir?(course_path) and File.exists?(course_yaml) do
+                      case YamlElixir.read_from_file(course_yaml) do
+                        {:ok, %{"id" => ^course_id}} -> course_path
+                        _ -> nil
+                      end
+                    end
+                  end)
+
+                _ ->
+                  nil
               end
-            else
-              false
             end
           end)
 
-        if result, do: {:ok, Path.join(base, result)}, else: :error
+        if result, do: {:ok, result}, else: :error
 
       _ ->
         :error
     end
   end
 
-  defp find_lesson_file(base, lesson_id) do
+  defp find_lesson_file(lesson_id) do
+    base = content_dir()
+
     case File.ls(base) do
       {:ok, subjects} ->
         result =
@@ -143,9 +175,25 @@ defmodule Backend.Content.Loader do
     case File.ls(subject_path) do
       {:ok, entries} ->
         Enum.find_value(entries, fn entry ->
-          mod_path = Path.join(subject_path, entry)
+          course_path = Path.join(subject_path, entry)
 
-          if File.dir?(mod_path) and entry != "." and entry != ".." do
+          if File.dir?(course_path) do
+            find_lesson_in_course(course_path, lesson_id)
+          end
+        end)
+
+      _ ->
+        nil
+    end
+  end
+
+  defp find_lesson_in_course(course_path, lesson_id) do
+    case File.ls(course_path) do
+      {:ok, entries} ->
+        Enum.find_value(entries, fn entry ->
+          mod_path = Path.join(course_path, entry)
+
+          if File.dir?(mod_path) and String.starts_with?(entry, "module-") do
             find_lesson_in_module(mod_path, lesson_id)
           end
         end)
@@ -307,10 +355,8 @@ defmodule Backend.Content.Loader do
   end
 
   defp parse_sections(body) do
-    # Split by ## headers, keeping the header name
     parts = Regex.split(~r/^## /m, body, include_captures: false)
 
-    # First element is any content before the first ## (usually empty), skip it
     parts
     |> Enum.drop(1)
     |> Enum.reduce(%{}, fn part, acc ->
