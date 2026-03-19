@@ -1,13 +1,19 @@
-import type { Component } from 'solid-js';
+import { createMemo, type Component } from 'solid-js';
+import { marked } from 'marked';
 
 interface MarkdownContentProps {
-  html: string;
+  content: string;
 }
 
 const MarkdownContent: Component<MarkdownContentProps> = (props) => {
+  const html = createMemo(() => {
+    if (!props.content) return '';
+    return marked.parse(props.content, { async: false }) as string;
+  });
+
   return (
     <>
-      <div class="markdown-content" innerHTML={props.html} />
+      <div class="markdown-content" innerHTML={html()} />
 
       <style>{`
         .markdown-content {
@@ -68,6 +74,24 @@ const MarkdownContent: Component<MarkdownContentProps> = (props) => {
           padding-left: 1rem;
           color: var(--text-secondary);
           margin-bottom: 1em;
+        }
+
+        .markdown-content table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 1em;
+        }
+
+        .markdown-content th,
+        .markdown-content td {
+          padding: 0.5rem 0.75rem;
+          border: 1px solid var(--border-color);
+          text-align: left;
+        }
+
+        .markdown-content th {
+          background: var(--bg-tertiary);
+          font-weight: 600;
         }
       `}</style>
     </>

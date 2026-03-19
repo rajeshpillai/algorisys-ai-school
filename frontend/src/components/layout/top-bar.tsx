@@ -5,7 +5,7 @@ export default function TopBar() {
   return (
     <>
       <header class="top-bar">
-        <A href="/" class="top-bar-brand">AI School</A>
+        <A href="/" class="top-bar-brand">Algorisys Open AI School</A>
         <div class="top-bar-actions">
           <ThemeToggle />
         </div>

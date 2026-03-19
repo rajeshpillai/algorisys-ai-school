@@ -25,6 +25,7 @@
     "@codemirror/view": "^6.40.0",
     "@corvu/resizable": "^0.2.5",
     "@solidjs/router": "^0.16.1",
+    "marked": "^17.0.4",
     "phoenix": "^1.8.5",
     "solid-js": "^1.9.5"
   }

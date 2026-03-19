@@ -15,7 +15,7 @@ const HeroSection: Component<HeroSectionProps> = (props) => {
 
   return (
     <section class="hero-section">
-      <h1 class="hero-title">AI School</h1>
+      <h1 class="hero-title">Algorisys Open AI School</h1>
       <p class="hero-subtitle">
         Learn any subject with a team of AI agents who teach, quiz, and
         guide you through interactive lessons.

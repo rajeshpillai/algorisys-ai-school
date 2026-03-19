@@ -1,41 +1,25 @@
-import { createSignal } from 'solid-js';
+import { createSignal, createResource, For, Show } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import TopBar from '../components/layout/top-bar';
+import { api } from '../lib/api-client';
 
-const sampleSubjects = [
-  {
-    id: 'programming',
-    title: 'Programming',
-    description: 'Learn to code with Python, JavaScript, Rust, and more.',
-    icon: '{ }',
-    color: '#3b82f6',
-  },
-  {
-    id: 'mathematics',
-    title: 'Mathematics',
-    description: 'From algebra to calculus, master mathematical concepts.',
-    icon: '\u03C0',
-    color: '#8b5cf6',
-  },
-  {
-    id: 'history',
-    title: 'History',
-    description: 'Explore world history through engaging discussions.',
-    icon: '\u231B',
-    color: '#f59e0b',
-  },
-  {
-    id: 'science',
-    title: 'Science',
-    description: 'Physics, chemistry, biology and the natural world.',
-    icon: '\u269B',
-    color: '#22c55e',
-  },
-];
+const subjectIcons: Record<string, { icon: string; color: string }> = {
+  programming: { icon: '{ }', color: '#3b82f6' },
+  mathematics: { icon: 'π', color: '#8b5cf6' },
+  history: { icon: '⌛', color: '#f59e0b' },
+  science: { icon: '⚛', color: '#22c55e' },
+};
+
+const defaultIcon = { icon: '📚', color: '#6366f1' };
 
 export default function Landing() {
   const [goal, setGoal] = createSignal('');
   const navigate = useNavigate();
+
+  const [data] = createResource(async () => {
+    const res = await api.getSubjects() as any;
+    return res.subjects || [];
+  });
 
   const handleStart = () => {
     const text = goal().trim();
@@ -71,21 +55,45 @@ export default function Landing() {
       </section>
 
       <section class="subjects-section">
-        <h2 class="subjects-heading">Explore Subjects</h2>
-        <div class="subjects-grid">
-          {sampleSubjects.map((subject) => (
-            <div class="subject-card">
-              <div
-                class="subject-icon"
-                style={{ 'background-color': subject.color + '20', color: subject.color }}
-              >
-                {subject.icon}
-              </div>
-              <h3 class="subject-card-title">{subject.title}</h3>
-              <p class="subject-card-desc">{subject.description}</p>
-            </div>
-          ))}
-        </div>
+        <h2 class="subjects-heading">Explore Courses</h2>
+
+        <Show when={data.loading}>
+          <p class="loading-text">Loading courses...</p>
+        </Show>
+
+        <Show when={!data.loading && data()}>
+          <For each={data()}>
+            {(subject: any) => {
+              const info = subjectIcons[subject.subject] || defaultIcon;
+              return (
+                <div class="subject-group">
+                  <div class="subject-group-header">
+                    <span class="subject-group-icon" style={{ 'background-color': info.color + '20', color: info.color }}>
+                      {info.icon}
+                    </span>
+                    <h3 class="subject-group-title">{subject.subject}</h3>
+                  </div>
+                  <div class="courses-grid">
+                    <For each={subject.courses}>
+                      {(course: any) => (
+                        <div
+                          class="course-card"
+                          onClick={() => navigate(`/courses/${course.id}`)}
+                        >
+                          <h4 class="course-card-title">{course.title}</h4>
+                          <p class="course-card-desc">{course.description}</p>
+                          <Show when={course.language}>
+                            <span class="course-card-tag">{course.language}</span>
+                          </Show>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              );
+            }}
+          </For>
+        </Show>
       </section>
 
       <style>{`
@@ -179,13 +187,47 @@ export default function Landing() {
           text-align: center;
         }
 
-        .subjects-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1.25rem;
+        .loading-text {
+          text-align: center;
+          color: var(--text-muted);
         }
 
-        .subject-card {
+        .subject-group {
+          margin-bottom: 2rem;
+        }
+
+        .subject-group-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .subject-group-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.2rem;
+          font-weight: 700;
+        }
+
+        .subject-group-title {
+          font-size: 1.2rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          text-transform: capitalize;
+        }
+
+        .courses-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1rem;
+        }
+
+        .course-card {
           background: var(--bg-secondary);
           border: 1px solid var(--border-color);
           border-radius: 12px;
@@ -194,34 +236,34 @@ export default function Landing() {
           transition: transform 0.15s, box-shadow 0.15s;
         }
 
-        .subject-card:hover {
+        .course-card:hover {
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
-        .subject-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.4rem;
-          font-weight: 700;
-          margin-bottom: 1rem;
-        }
-
-        .subject-card-title {
+        .course-card-title {
           font-size: 1.1rem;
           font-weight: 600;
           color: var(--text-primary);
           margin-bottom: 0.5rem;
         }
 
-        .subject-card-desc {
+        .course-card-desc {
           font-size: 0.9rem;
           color: var(--text-secondary);
           line-height: 1.5;
+          margin-bottom: 0.75rem;
+        }
+
+        .course-card-tag {
+          display: inline-block;
+          padding: 0.2rem 0.6rem;
+          background: var(--accent-color);
+          color: white;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
         }
       `}</style>
     </div>
