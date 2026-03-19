@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ai-school-postgres
+    environment:
+      POSTGRES_USER: ai_school
+      POSTGRES_PASSWORD: ai_school_dev
+      POSTGRES_DB: ai_school_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
