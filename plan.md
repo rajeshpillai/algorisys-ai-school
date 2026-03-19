@@ -409,6 +409,7 @@ print("Hello, World!")
 - Export as PDF/slides
 - Analytics dashboard
 - Course rating/reviews
+- OpenClaw-style messaging integration (Slack, Discord, Telegram) — users trigger classroom sessions from chat apps, receive session links back
 
 ---
 
