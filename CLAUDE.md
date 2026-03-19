@@ -85,6 +85,8 @@ Set in `backend/.env`:
 - **TDD for all new features**: Write tests first (red → green → refactor) before implementing any new functionality
 - **Retrospective TDD for existing features**: Existing code that lacks tests must have tests added in TDD style — write a failing test that captures the expected behavior, then verify it passes against the existing implementation
 - **Backend tests**: `cd backend && mix test` — use ExUnit with async where possible
+- **Fast tests only** (skip LLM calls): `cd backend && mix test --exclude llm_integration`
+- **Agent tests** are tagged `@moduletag :llm_integration` — they hit real LLM APIs and are slow (~200s)
 - **Frontend tests**: Component and integration tests for UI behavior
 - **No code merges without tests**: Every PR must include tests for the changes it introduces
 

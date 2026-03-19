@@ -57,6 +57,10 @@ defmodule Backend.Agents.RoleSynthesis do
 
   defp build_learner_profile(nil), do: @default_learner_profile
 
+  defp build_learner_profile(profile) when is_binary(profile) do
+    %{@default_learner_profile | "background" => profile}
+  end
+
   defp build_learner_profile(profile) when is_map(profile) do
     %{
       "background" => profile["background"] || @default_learner_profile["background"],
