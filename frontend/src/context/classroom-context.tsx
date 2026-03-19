@@ -12,10 +12,12 @@ interface ClassroomContextValue {
   isConnected: () => boolean;
   progress: () => CurriculumProgress | null;
   advancePrompt: () => AdvancePrompt | null;
+  isPaused: () => boolean;
   connect: (sessionId: string) => void;
   send: (content: string) => void;
   confirmAdvance: () => void;
   dismissAdvance: () => void;
+  togglePause: () => void;
   disconnect: () => void;
 }
 
@@ -30,6 +32,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
   const [isConnected, setIsConnected] = createSignal(false);
   const [progress, setProgress] = createSignal<CurriculumProgress | null>(null);
   const [advancePrompt, setAdvancePrompt] = createSignal<AdvancePrompt | null>(null);
+  const [isPaused, setIsPaused] = createSignal(false);
 
   let channel: Channel | null = null;
   let streamingRole = '';
@@ -147,6 +150,17 @@ export const ClassroomProvider: ParentComponent = (props) => {
     setAdvancePrompt(null);
   };
 
+  const togglePause = () => {
+    const wasPaused = isPaused();
+    setIsPaused(!wasPaused);
+
+    // If resuming and there's a pending advance prompt, auto-continue
+    if (wasPaused && advancePrompt() && channel) {
+      setAdvancePrompt(null);
+      sendAction(channel, 'continue');
+    }
+  };
+
   const disconnect = () => {
     if (channel) {
       leaveClassroom(channel);
@@ -174,10 +188,12 @@ export const ClassroomProvider: ParentComponent = (props) => {
         isConnected,
         progress,
         advancePrompt,
+        isPaused,
         connect,
         send,
         confirmAdvance,
         dismissAdvance,
+        togglePause,
         disconnect,
       }}
     >

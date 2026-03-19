@@ -3,6 +3,7 @@ import type { AdvancePrompt } from '../../lib/types';
 
 interface AdvancePromptCardProps {
   prompt: AdvancePrompt;
+  paused: boolean;
   onContinue: () => void;
   onDismiss: () => void;
 }
@@ -14,7 +15,10 @@ const AdvancePromptCard: Component<AdvancePromptCardProps> = (props) => {
 
   createEffect(() => {
     const interval = setInterval(() => {
-      setElapsed((prev) => prev + 0.1);
+      // Freeze timer when paused
+      if (!props.paused) {
+        setElapsed((prev) => prev + 0.1);
+      }
     }, 100);
 
     onCleanup(() => clearInterval(interval));
@@ -22,7 +26,7 @@ const AdvancePromptCard: Component<AdvancePromptCardProps> = (props) => {
 
   // Auto-continue is handled by backend timeout, but we can track visually
   createEffect(() => {
-    if (elapsed() >= totalSeconds()) {
+    if (!props.paused && elapsed() >= totalSeconds()) {
       // Backend will auto-advance — dismiss the UI
       props.onDismiss();
     }

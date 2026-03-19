@@ -24,7 +24,11 @@ function ClassroomContent() {
     <>
       <div class="classroom-page">
         <TopBar />
-        <CurriculumProgressBar progress={classroom.progress()} />
+        <CurriculumProgressBar
+          progress={classroom.progress()}
+          isPaused={classroom.isPaused()}
+          onTogglePause={() => classroom.togglePause()}
+        />
         <div class="classroom-header">
           <span class="classroom-session-label">Session: {params.sessionId}</span>
         </div>
@@ -39,6 +43,7 @@ function ClassroomContent() {
             <Show when={classroom.advancePrompt()}>
               <AdvancePromptCard
                 prompt={classroom.advancePrompt()!}
+                paused={classroom.isPaused()}
                 onContinue={() => classroom.confirmAdvance()}
                 onDismiss={() => classroom.dismissAdvance()}
               />
