@@ -1,6 +1,5 @@
 import { createSignal, createResource, Show } from 'solid-js';
 import { useParams } from '@solidjs/router';
-import TopBar from '../components/layout/top-bar';
 import MarkdownContent from '../components/content/markdown-content';
 import { api } from '../lib/api-client';
 
@@ -13,6 +12,7 @@ export default function LessonPage() {
   const [lesson] = createResource(
     () => params.lessonId,
     async (id) => {
+      setActiveTab('content');
       const res = await api.getLesson(id) as any;
       return res.lesson;
     }
@@ -29,40 +29,29 @@ export default function LessonPage() {
   };
 
   return (
-    <div class="lesson-page">
-      <TopBar />
-
+    <div class="lp-panel">
       <Show when={lesson.loading}>
-        <div class="lesson-loading">Loading lesson...</div>
+        <div class="lp-loading">Loading lesson...</div>
       </Show>
 
       <Show when={lesson.error}>
-        <div class="lesson-error">Lesson not found.</div>
+        <div class="lp-error">Lesson not found.</div>
       </Show>
 
       <Show when={lesson()}>
         {(l) => (
-          <div class="lesson-layout">
-            <header class="lesson-header">
-              <div class="lesson-header-content">
-                <div class="lesson-breadcrumb">
-                  <a href={`/courses/${params.courseId}`} class="breadcrumb-link">
-                    {params.courseId}
-                  </a>
-                  <span class="breadcrumb-sep">/</span>
-                  <span class="breadcrumb-current">{l().title}</span>
-                </div>
-                <h1 class="lesson-title">{l().title}</h1>
-                <div class="lesson-meta-bar">
-                  <span class="lesson-difficulty">{l().difficulty}</span>
-                  <span class="lesson-time">{l().estimated_minutes} min</span>
-                </div>
+          <>
+            <header class="lp-header">
+              <h1 class="lp-title">{l().title}</h1>
+              <div class="lp-meta-bar">
+                <span class="lp-difficulty">{l().difficulty}</span>
+                <span class="lp-time">{l().estimated_minutes} min</span>
               </div>
 
-              <div class="lesson-tabs">
+              <div class="lp-tabs">
                 {tabs().map((tab) => (
                   <button
-                    class={`lesson-tab ${activeTab() === tab.id ? 'lesson-tab-active' : ''}`}
+                    class={`lp-tab ${activeTab() === tab.id ? 'lp-tab-active' : ''}`}
                     onClick={() => setActiveTab(tab.id)}
                   >
                     {tab.label}
@@ -71,133 +60,90 @@ export default function LessonPage() {
               </div>
             </header>
 
-            <main class="lesson-content">
+            <div class="lp-content">
               <Show when={activeTab() === 'content' && l().slide_content}>
-                <div class="content-panel">
-                  <MarkdownContent content={l().slide_content} />
-                </div>
+                <MarkdownContent content={l().slide_content} />
               </Show>
 
               <Show when={activeTab() === 'discussion' && l().discussion_prompt}>
-                <div class="content-panel">
-                  <h2 class="panel-title">Discussion</h2>
-                  <p class="discussion-prompt">{l().discussion_prompt}</p>
-                  <p class="discussion-hint">
-                    The AI classroom will facilitate this discussion with multiple agents.
-                    This feature is coming soon.
-                  </p>
-                </div>
+                <h2 class="panel-title">Discussion</h2>
+                <p class="discussion-prompt">{l().discussion_prompt}</p>
+                <p class="discussion-hint">
+                  The AI classroom will facilitate this discussion with multiple agents.
+                  This feature is coming soon.
+                </p>
               </Show>
 
               <Show when={activeTab() === 'quiz' && l().quiz_content}>
-                <div class="content-panel">
-                  <h2 class="panel-title">Quiz</h2>
-                  <MarkdownContent content={l().quiz_content} />
-                </div>
+                <h2 class="panel-title">Quiz</h2>
+                <MarkdownContent content={l().quiz_content} />
               </Show>
 
               <Show when={activeTab() === 'playground' && l().playground_code}>
-                <div class="content-panel">
-                  <h2 class="panel-title">Playground</h2>
-                  <div class="code-block">
-                    <MarkdownContent content={l().playground_code} />
-                  </div>
-                  <Show when={l().playground_solution}>
-                    <details class="solution-details">
-                      <summary class="solution-summary">Show Solution</summary>
-                      <div class="code-block">
-                        <MarkdownContent content={l().playground_solution} />
-                      </div>
-                    </details>
-                  </Show>
+                <h2 class="panel-title">Playground</h2>
+                <div class="code-block">
+                  <MarkdownContent content={l().playground_code} />
                 </div>
+                <Show when={l().playground_solution}>
+                  <details class="solution-details">
+                    <summary class="solution-summary">Show Solution</summary>
+                    <div class="code-block">
+                      <MarkdownContent content={l().playground_solution} />
+                    </div>
+                  </details>
+                </Show>
               </Show>
-            </main>
-          </div>
+            </div>
+          </>
         )}
       </Show>
 
       <style>{`
-        .lesson-page {
-          min-height: 100vh;
-          background: var(--bg-primary);
+        .lp-panel {
+          max-width: 720px;
         }
 
-        .lesson-loading, .lesson-error {
-          text-align: center;
-          padding: 4rem;
+        .lp-loading, .lp-error {
+          padding: 2rem;
           color: var(--text-muted);
-          font-size: 1.1rem;
         }
 
-        .lesson-layout {
-          max-width: 860px;
-          margin: 0 auto;
-        }
-
-        .lesson-header {
-          padding: 1.5rem 1.5rem 0;
+        .lp-header {
+          padding-bottom: 0;
           border-bottom: 1px solid var(--border-color);
+          margin-bottom: 1.5rem;
         }
 
-        .lesson-header-content {
-          margin-bottom: 1rem;
-        }
-
-        .lesson-breadcrumb {
-          display: flex;
-          align-items: center;
-          gap: 0.4rem;
-          font-size: 0.85rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .breadcrumb-link {
-          color: var(--accent-color);
-          text-decoration: none;
-        }
-
-        .breadcrumb-link:hover {
-          text-decoration: underline;
-        }
-
-        .breadcrumb-sep {
-          color: var(--text-muted);
-        }
-
-        .breadcrumb-current {
-          color: var(--text-secondary);
-        }
-
-        .lesson-title {
+        .lp-title {
           font-size: 1.75rem;
           font-weight: 800;
           color: var(--text-primary);
           margin-bottom: 0.5rem;
         }
 
-        .lesson-meta-bar {
+        .lp-meta-bar {
           display: flex;
           gap: 1rem;
           font-size: 0.85rem;
+          margin-bottom: 1rem;
         }
 
-        .lesson-difficulty {
+        .lp-difficulty {
           color: var(--accent-color);
           font-weight: 600;
           text-transform: capitalize;
         }
 
-        .lesson-time {
+        .lp-time {
           color: var(--text-muted);
         }
 
-        .lesson-tabs {
+        .lp-tabs {
           display: flex;
           gap: 0;
         }
 
-        .lesson-tab {
+        .lp-tab {
           padding: 0.75rem 1.25rem;
           background: none;
           border: none;
@@ -209,22 +155,18 @@ export default function LessonPage() {
           transition: color 0.15s, border-color 0.15s;
         }
 
-        .lesson-tab:hover {
+        .lp-tab:hover {
           color: var(--text-primary);
         }
 
-        .lesson-tab-active {
+        .lp-tab-active {
           color: var(--accent-color);
           border-bottom-color: var(--accent-color);
           font-weight: 600;
         }
 
-        .lesson-content {
-          padding: 2rem 1.5rem;
-        }
-
-        .content-panel {
-          max-width: 100%;
+        .lp-content {
+          padding: 0;
         }
 
         .panel-title {

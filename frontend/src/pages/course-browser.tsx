@@ -1,10 +1,11 @@
-import { createResource, For, Show } from 'solid-js';
+import { createResource, createMemo, For, Show } from 'solid-js';
 import { useParams, useNavigate } from '@solidjs/router';
 import TopBar from '../components/layout/top-bar';
+import LessonPage from './lesson-page';
 import { api } from '../lib/api-client';
 
 export default function CourseBrowser() {
-  const params = useParams<{ courseId: string }>();
+  const params = useParams<{ courseId: string; moduleId?: string; lessonId?: string }>();
   const navigate = useNavigate();
 
   const [course] = createResource(
@@ -14,6 +15,8 @@ export default function CourseBrowser() {
       return res.course;
     }
   );
+
+  const hasLesson = createMemo(() => !!params.lessonId);
 
   return (
     <div class="course-page">
@@ -47,7 +50,7 @@ export default function CourseBrowser() {
                         <For each={mod.lessons}>
                           {(lesson: any) => (
                             <li
-                              class="lesson-item"
+                              class={`lesson-item ${params.lessonId === lesson.id ? 'lesson-item-active' : ''}`}
                               onClick={() =>
                                 navigate(`/courses/${params.courseId}/${mod.id}/${lesson.id}`)
                               }
@@ -68,65 +71,71 @@ export default function CourseBrowser() {
             </aside>
 
             <main class="course-main">
-              <div class="course-overview">
-                <h1 class="overview-title">{c().title}</h1>
-                <p class="overview-desc">{c().description}</p>
+              <Show when={hasLesson()}>
+                <LessonPage />
+              </Show>
 
-                <div class="overview-stats">
-                  <div class="stat">
-                    <span class="stat-value">{c().modules.length}</span>
-                    <span class="stat-label">Modules</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-value">
-                      {c().modules.reduce((sum: number, m: any) => sum + m.lessons.length, 0)}
-                    </span>
-                    <span class="stat-label">Lessons</span>
-                  </div>
-                  <Show when={c().language}>
+              <Show when={!hasLesson()}>
+                <div class="course-overview">
+                  <h1 class="overview-title">{c().title}</h1>
+                  <p class="overview-desc">{c().description}</p>
+
+                  <div class="overview-stats">
                     <div class="stat">
-                      <span class="stat-value">{c().language}</span>
-                      <span class="stat-label">Language</span>
+                      <span class="stat-value">{c().modules.length}</span>
+                      <span class="stat-label">Modules</span>
                     </div>
-                  </Show>
-                </div>
-
-                <h2 class="overview-section-title">Modules</h2>
-                <For each={c().modules}>
-                  {(mod: any) => (
-                    <div class="module-card">
-                      <h3 class="module-card-title">
-                        {mod.sequence}. {mod.title}
-                      </h3>
-                      <div class="module-card-lessons">
-                        <For each={mod.lessons}>
-                          {(lesson: any) => (
-                            <div
-                              class="lesson-card"
-                              onClick={() =>
-                                navigate(`/courses/${params.courseId}/${mod.id}/${lesson.id}`)
-                              }
-                            >
-                              <div class="lesson-card-header">
-                                <span class="lesson-card-title">{lesson.title}</span>
-                                <span class="lesson-card-difficulty">{lesson.difficulty}</span>
-                              </div>
-                              <div class="lesson-card-tags">
-                                <For each={lesson.activity_types}>
-                                  {(tag: string) => (
-                                    <span class="activity-tag">{tag}</span>
-                                  )}
-                                </For>
-                                <span class="lesson-card-time">{lesson.estimated_minutes} min</span>
-                              </div>
-                            </div>
-                          )}
-                        </For>
+                    <div class="stat">
+                      <span class="stat-value">
+                        {c().modules.reduce((sum: number, m: any) => sum + m.lessons.length, 0)}
+                      </span>
+                      <span class="stat-label">Lessons</span>
+                    </div>
+                    <Show when={c().language}>
+                      <div class="stat">
+                        <span class="stat-value">{c().language}</span>
+                        <span class="stat-label">Language</span>
                       </div>
-                    </div>
-                  )}
-                </For>
-              </div>
+                    </Show>
+                  </div>
+
+                  <h2 class="overview-section-title">Modules</h2>
+                  <For each={c().modules}>
+                    {(mod: any) => (
+                      <div class="module-card">
+                        <h3 class="module-card-title">
+                          {mod.sequence}. {mod.title}
+                        </h3>
+                        <div class="module-card-lessons">
+                          <For each={mod.lessons}>
+                            {(lesson: any) => (
+                              <div
+                                class="lesson-card"
+                                onClick={() =>
+                                  navigate(`/courses/${params.courseId}/${mod.id}/${lesson.id}`)
+                                }
+                              >
+                                <div class="lesson-card-header">
+                                  <span class="lesson-card-title">{lesson.title}</span>
+                                  <span class="lesson-card-difficulty">{lesson.difficulty}</span>
+                                </div>
+                                <div class="lesson-card-tags">
+                                  <For each={lesson.activity_types}>
+                                    {(tag: string) => (
+                                      <span class="activity-tag">{tag}</span>
+                                    )}
+                                  </For>
+                                  <span class="lesson-card-time">{lesson.estimated_minutes} min</span>
+                                </div>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
             </main>
           </div>
         )}
@@ -157,6 +166,9 @@ export default function CourseBrowser() {
           border-right: 1px solid var(--border-color);
           padding: 1.5rem;
           overflow-y: auto;
+          height: calc(100vh - var(--topbar-height));
+          position: sticky;
+          top: var(--topbar-height);
         }
 
         .sidebar-header {
@@ -210,6 +222,16 @@ export default function CourseBrowser() {
 
         .lesson-item:hover {
           background: var(--bg-tertiary);
+        }
+
+        .lesson-item-active {
+          background: var(--accent-color);
+        }
+
+        .lesson-item-active .lesson-seq,
+        .lesson-item-active .lesson-title,
+        .lesson-item-active .lesson-meta {
+          color: white;
         }
 
         .lesson-seq {
