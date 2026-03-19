@@ -1,6 +1,8 @@
 import { createContext, useContext, createSignal, createEffect, onCleanup, ParentComponent } from 'solid-js';
-import { joinClassroom, sendMessage, sendAction, leaveClassroom } from '../lib/channel-client';
+import { joinClassroom, sendMessage, sendAction, submitQuiz, leaveClassroom } from '../lib/channel-client';
 import type { AgentMessage, AgentRole, CurriculumProgress, AdvancePrompt } from '../lib/types';
+import type { QuizData, QuizAnswer, QuizGradeResult } from '../lib/quiz-types';
+import { parseQuizFromMessage } from '../lib/quiz-types';
 import type { Channel } from 'phoenix';
 
 interface ClassroomContextValue {
@@ -13,11 +15,14 @@ interface ClassroomContextValue {
   progress: () => CurriculumProgress | null;
   advancePrompt: () => AdvancePrompt | null;
   isPaused: () => boolean;
+  activeQuiz: () => QuizData | null;
+  quizResult: () => QuizGradeResult | null;
   connect: (sessionId: string) => void;
   send: (content: string) => void;
   confirmAdvance: () => void;
   dismissAdvance: () => void;
   togglePause: () => void;
+  submitQuizAnswers: (answers: QuizAnswer[]) => void;
   disconnect: () => void;
 }
 
@@ -33,6 +38,8 @@ export const ClassroomProvider: ParentComponent = (props) => {
   const [progress, setProgress] = createSignal<CurriculumProgress | null>(null);
   const [advancePrompt, setAdvancePrompt] = createSignal<AdvancePrompt | null>(null);
   const [isPaused, setIsPaused] = createSignal(false);
+  const [activeQuiz, setActiveQuiz] = createSignal<QuizData | null>(null);
+  const [quizResult, setQuizResult] = createSignal<QuizGradeResult | null>(null);
 
   let channel: Channel | null = null;
   let streamingRole = '';
@@ -93,6 +100,13 @@ export const ClassroomProvider: ParentComponent = (props) => {
             timestamp: data.timestamp || Date.now(),
           };
           setMessages((prev) => [...prev, agentMsg]);
+
+          // Check if the message contains a quiz
+          const quiz = parseQuizFromMessage(content);
+          if (quiz) {
+            setActiveQuiz(quiz);
+            setQuizResult(null);
+          }
         }
         setStreamingAgent(null);
         setStreamingContent('');
@@ -107,6 +121,10 @@ export const ClassroomProvider: ParentComponent = (props) => {
           current_module_index: data.current_module_index || 0,
           current_lesson_index: data.current_lesson_index || 0,
         });
+      },
+
+      onQuizResult: (data: any) => {
+        setQuizResult(data as QuizGradeResult);
       },
 
       onAdvancePrompt: (data: any) => {
@@ -154,6 +172,19 @@ export const ClassroomProvider: ParentComponent = (props) => {
     }
   };
 
+  const submitQuizAnswers = (answers: QuizAnswer[]) => {
+    if (!channel || !activeQuiz()) return;
+    const questions = activeQuiz()!.questions.map((q) => ({
+      id: q.id,
+      question: q.question,
+      type: q.type,
+      options: q.options,
+      answer: q.type === 'single' ? (q as any).correctAnswer : undefined,
+      points: q.points,
+    }));
+    submitQuiz(channel, questions, answers);
+  };
+
   const togglePause = () => {
     const wasPaused = isPaused();
     setIsPaused(!wasPaused);
@@ -193,11 +224,14 @@ export const ClassroomProvider: ParentComponent = (props) => {
         progress,
         advancePrompt,
         isPaused,
+        activeQuiz,
+        quizResult,
         connect,
         send,
         confirmAdvance,
         dismissAdvance,
         togglePause,
+        submitQuizAnswers,
         disconnect,
       }}
     >

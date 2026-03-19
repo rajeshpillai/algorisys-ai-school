@@ -23,6 +23,27 @@ defmodule BackendWeb.ClassroomChannel do
     {:noreply, socket}
   end
 
+  def handle_in("submit_quiz", %{"questions" => questions, "answers" => answers}, socket) do
+    llm_config = socket.assigns[:llm_config]
+    opts = if llm_config, do: [llm_config: llm_config], else: []
+
+    Task.start(fn ->
+      case Backend.Agents.QuizGrader.grade(questions, answers, opts) do
+        {:ok, result} ->
+          BackendWeb.Endpoint.broadcast(
+            "classroom:#{socket.assigns.session_id}",
+            "quiz_result",
+            result
+          )
+
+        {:error, reason} ->
+          Logger.error("Quiz grading failed: #{inspect(reason)}")
+      end
+    end)
+
+    {:noreply, socket}
+  end
+
   def handle_in(_event, _payload, socket) do
     {:noreply, socket}
   end

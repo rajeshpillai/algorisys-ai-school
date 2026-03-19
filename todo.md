@@ -129,10 +129,10 @@
 - [ ] Formula rendering — KaTeX for math/science subjects
 
 ### Quiz & Grading Enhancements
-- [ ] Multiple question types: single-choice, multiple-choice, short-answer
-- [ ] AI grading for short-answer questions (LLM-based scoring + feedback)
-- [ ] Points-per-question scoring with summary view
-- [ ] Quiz cover screen showing question count and total points
+- [x] Multiple question types: single-choice, multiple-choice, short-answer
+- [x] AI grading for short-answer questions (LLM-based scoring + feedback)
+- [x] Points-per-question scoring with summary view
+- [x] Quiz header showing question count and topic
 
 ### Slide / Presentation Mode
 - [ ] Structured slide scenes (beyond chat — visual presentation of concepts)

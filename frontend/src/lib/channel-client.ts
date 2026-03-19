@@ -20,6 +20,7 @@ export function joinClassroom(
     onAgentDone: (data: any) => void;
     onCurriculumProgress?: (data: any) => void;
     onAdvancePrompt?: (data: any) => void;
+    onQuizResult?: (data: any) => void;
   }
 ): Channel {
   const s = getSocket();
@@ -33,6 +34,9 @@ export function joinClassroom(
   }
   if (callbacks.onAdvancePrompt) {
     channel.on('advance_prompt', callbacks.onAdvancePrompt);
+  }
+  if (callbacks.onQuizResult) {
+    channel.on('quiz_result', callbacks.onQuizResult);
   }
 
   channel.join()
@@ -48,6 +52,10 @@ export function sendMessage(channel: Channel, content: string) {
 
 export function sendAction(channel: Channel, action: string) {
   channel.push('send_action', { action });
+}
+
+export function submitQuiz(channel: Channel, questions: any[], answers: any[]) {
+  channel.push('submit_quiz', { questions, answers });
 }
 
 export function leaveClassroom(channel: Channel) {

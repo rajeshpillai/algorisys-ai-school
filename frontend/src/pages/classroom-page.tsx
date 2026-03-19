@@ -7,6 +7,7 @@ import ParticipantList from '../components/classroom/participant-list';
 import UserInput from '../components/classroom/user-input';
 import CurriculumProgressBar from '../components/classroom/curriculum-progress';
 import AdvancePromptCard from '../components/classroom/advance-prompt';
+import QuizCard from '../components/classroom/quiz-card';
 
 function ClassroomContent() {
   const params = useParams<{ sessionId: string }>();
@@ -40,6 +41,13 @@ function ClassroomContent() {
               streamingContent={classroom.streamingContent()}
               agents={classroom.agents()}
             />
+            <Show when={classroom.activeQuiz()}>
+              <QuizCard
+                quiz={classroom.activeQuiz()!}
+                result={classroom.quizResult()}
+                onSubmit={(answers) => classroom.submitQuizAnswers(answers)}
+              />
+            </Show>
             <Show when={classroom.advancePrompt()}>
               <AdvancePromptCard
                 prompt={classroom.advancePrompt()!}
