@@ -18,10 +18,10 @@ defmodule Backend.Classroom.SessionSupervisor do
   @doc """
   Start a new classroom session with the given ID, goal, and learner profile.
   """
-  def start_session(session_id, goal, learner_profile) do
+  def start_session(session_id, goal, learner_profile, llm_config \\ nil) do
     DynamicSupervisor.start_child(__MODULE__, {
       Backend.Classroom.Session,
-      id: session_id, goal: goal, learner_profile: learner_profile
+      id: session_id, goal: goal, learner_profile: learner_profile, llm_config: llm_config
     })
   end
 end

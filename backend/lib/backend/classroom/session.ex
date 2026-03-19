@@ -27,6 +27,7 @@ defmodule Backend.Classroom.Session do
     current_topic: nil,
     current_agent: nil,
     orchestrator_decision: nil,
+    llm_config: nil,
     state: :initializing
   ]
 
@@ -62,6 +63,7 @@ defmodule Backend.Classroom.Session do
     session_id = Keyword.fetch!(opts, :id)
     goal = Keyword.fetch!(opts, :goal)
     learner_profile = Keyword.get(opts, :learner_profile)
+    llm_config = Keyword.get(opts, :llm_config)
 
     case Store.load_session(session_id) do
       nil ->
@@ -72,6 +74,7 @@ defmodule Backend.Classroom.Session do
           id: session_id,
           goal: goal,
           learner_profile: learner_profile,
+          llm_config: llm_config,
           state: :initializing
         }
 
@@ -275,6 +278,8 @@ defmodule Backend.Classroom.Session do
     learner_profile = state.learner_profile
     session_id = state.id
     learner_state = state.learner_state
+    llm_config = state.llm_config
+    llm_opts = if llm_config, do: [llm_config: llm_config], else: []
 
     Task.start(fn ->
       broadcast(session_id, "agent_message", %{
@@ -287,7 +292,7 @@ defmodule Backend.Classroom.Session do
 
       # Step 1: Role Synthesis
       agents =
-        case RoleSynthesis.generate_team(goal, learner_profile) do
+        case RoleSynthesis.generate_team(goal, learner_profile, llm_opts) do
           {:ok, agents} ->
             Logger.info("Generated #{length(agents)} agents")
 
@@ -308,7 +313,7 @@ defmodule Backend.Classroom.Session do
 
       # Step 2: Curriculum Planning
       curriculum_plan =
-        case CurriculumPlanner.generate_plan(goal, learner_profile) do
+        case CurriculumPlanner.generate_plan(goal, learner_profile, llm_opts) do
           {:ok, plan} ->
             modules = plan["modules"] || []
             total_lessons = Enum.reduce(modules, 0, fn m, acc -> acc + length(m["lessons"] || []) end)
@@ -344,7 +349,7 @@ defmodule Backend.Classroom.Session do
       }
 
       decision =
-        case Orchestrator.decide_next(orchestrator_input) do
+        case Orchestrator.decide_next(orchestrator_input, llm_opts) do
           {:ok, decision} ->
             Logger.info("Orchestrator decision: #{inspect(decision["next_action"])}")
             decision
@@ -364,7 +369,7 @@ defmodule Backend.Classroom.Session do
 
       # Step 4: Scene Engine
       scene_spec =
-        case SceneEngine.design_scene(first_topic, selected_agent, action_type, learner_state) do
+        case SceneEngine.design_scene(first_topic, selected_agent, action_type, learner_state, llm_opts) do
           {:ok, spec} ->
             Logger.info("Scene engine designed: #{inspect((spec["scene"] || %{})["type"])}")
             spec
@@ -386,6 +391,8 @@ defmodule Backend.Classroom.Session do
     learner_state = state.learner_state
     last_interaction = build_last_interaction(state)
     curriculum_plan = state.curriculum_plan
+    llm_config = state.llm_config
+    llm_opts = if llm_config, do: [llm_config: llm_config], else: []
 
     Task.start(fn ->
       orchestrator_input = %{
@@ -399,7 +406,7 @@ defmodule Backend.Classroom.Session do
       }
 
       decision =
-        case Orchestrator.decide_next(orchestrator_input) do
+        case Orchestrator.decide_next(orchestrator_input, llm_opts) do
           {:ok, decision} ->
             Logger.info("Orchestrator decision: #{inspect(decision["next_action"])}")
             decision
@@ -418,7 +425,7 @@ defmodule Backend.Classroom.Session do
       selected_agent = find_agent(agents, agent_name)
 
       scene_spec =
-        case SceneEngine.design_scene(current_topic, selected_agent, action_type, learner_state) do
+        case SceneEngine.design_scene(current_topic, selected_agent, action_type, learner_state, llm_opts) do
           {:ok, spec} ->
             Logger.info("Scene engine designed: #{inspect((spec["scene"] || %{})["type"])}")
             spec
@@ -439,6 +446,8 @@ defmodule Backend.Classroom.Session do
     gen_server_pid = self()
     conversation_history = state.messages
     learner_state = state.learner_state
+    llm_config = state.llm_config
+    llm_opts = if llm_config, do: [llm_config: llm_config], else: []
 
     Task.start(fn ->
       callback = fn
@@ -476,7 +485,8 @@ defmodule Backend.Classroom.Session do
         scene_spec,
         conversation_history,
         learner_state,
-        callback
+        callback,
+        llm_opts
       )
     end)
   end

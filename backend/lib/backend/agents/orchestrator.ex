@@ -34,12 +34,14 @@ defmodule Backend.Agents.Orchestrator do
   Returns {:ok, decision} or {:error, reason}.
   """
   @spec decide_next(map()) :: {:ok, map()} | {:error, term()}
-  def decide_next(current_state) do
+  def decide_next(current_state, opts \\ []) do
     input = build_input(current_state)
+
+    llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
 
     with {:ok, prompt} <- PromptBuilder.load_prompt("orchestrator-agent"),
          messages = PromptBuilder.build_orchestrator_messages(prompt, input),
-         {:ok, decision} <- Client.chat_json(messages, model: @model) do
+         {:ok, decision} <- Client.chat_json(messages, llm_opts) do
       Logger.info("Orchestrator decision: #{inspect(decision["next_action"])}")
       {:ok, decision}
     else

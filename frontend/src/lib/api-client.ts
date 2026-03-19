@@ -13,10 +13,14 @@ export const api = {
   getSubjects: () => request('/subjects'),
   getCourse: (id: string) => request(`/courses/${id}`),
   getLesson: (id: string) => request(`/lessons/${id}`),
-  startClassroom: (goal: string, learnerProfile?: any) =>
+  startClassroom: (goal: string, learnerProfile?: any, llmConfig?: Record<string, string> | null) =>
     request('/classroom/start', {
       method: 'POST',
-      body: JSON.stringify({ goal, learner_profile: learnerProfile }),
+      body: JSON.stringify({
+        goal,
+        learner_profile: learnerProfile,
+        ...(llmConfig ? { llm_config: llmConfig } : {}),
+      }),
     }),
   sendMessage: (sessionId: string, content: string) =>
     request(`/classroom/${sessionId}/message`, {

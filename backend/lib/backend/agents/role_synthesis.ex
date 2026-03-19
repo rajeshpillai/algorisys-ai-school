@@ -29,7 +29,7 @@ defmodule Backend.Agents.RoleSynthesis do
   or {:error, reason}.
   """
   @spec generate_team(String.t(), map() | nil) :: {:ok, list(map())} | {:error, term()}
-  def generate_team(goal, learner_profile \\ nil) do
+  def generate_team(goal, learner_profile \\ nil, opts \\ []) do
     profile = build_learner_profile(learner_profile)
 
     input = %{
@@ -38,9 +38,11 @@ defmodule Backend.Agents.RoleSynthesis do
       learner_profile: profile
     }
 
+    llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
+
     with {:ok, prompt} <- PromptBuilder.load_prompt("role-synthesis-agent"),
          messages = PromptBuilder.build_role_synthesis_messages(prompt, input),
-         {:ok, roles} when is_list(roles) <- Client.chat_json(messages, model: @model) do
+         {:ok, roles} when is_list(roles) <- Client.chat_json(messages, llm_opts) do
       Logger.info("Role synthesis generated #{length(roles)} roles for goal: #{goal}")
       {:ok, roles}
     else

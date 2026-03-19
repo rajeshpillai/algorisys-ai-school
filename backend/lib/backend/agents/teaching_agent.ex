@@ -28,7 +28,7 @@ defmodule Backend.Agents.TeachingAgent do
   """
   @spec teach(map(), map(), list(map()), %LearnerState{}, function()) ::
           :ok | {:error, term()}
-  def teach(role_spec, scene_spec, conversation_history, learner_state, callback) do
+  def teach(role_spec, scene_spec, conversation_history, learner_state, callback, opts \\ []) do
     case PromptBuilder.load_prompt("teaching-agent") do
       {:ok, base_prompt} ->
         messages =
@@ -43,7 +43,8 @@ defmodule Backend.Agents.TeachingAgent do
         # If there are no user messages in history, add a starter message
         messages = ensure_user_message(messages, role_spec, scene_spec)
 
-        Streaming.stream_chat(messages, callback, model: @model)
+        llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
+        Streaming.stream_chat(messages, callback, llm_opts)
 
       {:error, reason} ->
         Logger.error("Failed to load teaching-agent prompt: #{inspect(reason)}")

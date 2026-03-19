@@ -17,12 +17,14 @@ defmodule Backend.Agents.CurriculumPlanner do
   The plan includes modules, lessons, time budgets, checkpoints, and adaptation notes.
   """
   @spec generate_plan(String.t(), any()) :: {:ok, map()} | {:error, term()}
-  def generate_plan(goal, learner_profile) do
+  def generate_plan(goal, learner_profile, opts \\ []) do
     input = build_input(goal, learner_profile)
+
+    llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
 
     with {:ok, prompt} <- PromptBuilder.load_prompt("curriculum-planner"),
          messages = PromptBuilder.build_curriculum_planner_messages(prompt, input),
-         {:ok, result} <- Client.chat_json(messages, model: @model) do
+         {:ok, result} <- Client.chat_json(messages, llm_opts) do
       plan = extract_plan(result)
       Logger.info("Curriculum plan generated: #{length(plan["modules"] || [])} modules")
       {:ok, plan}

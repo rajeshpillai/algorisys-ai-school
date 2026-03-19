@@ -83,10 +83,10 @@
   - Only auto-advance after user confirms (or configurable 30s timeout)
 
 ## User Settings
-- [ ] Allow users to set their own LLM API keys (provider, key) via UI
-- [ ] Settings page — form for API key entry, provider selection (OpenAI/Anthropic/Ollama)
-- [ ] Backend endpoint to store/validate keys per user session
-- [ ] Pass user-provided keys to LLM client instead of server env vars
+- [x] Allow users to set their own LLM API keys (provider, key) via UI
+- [x] Settings modal — form for API key entry, provider selection (OpenAI/Anthropic/Ollama)
+- [x] Keys stored in browser localStorage, passed to backend per session start
+- [x] Pass user-provided keys to LLM client instead of server env vars
 
 ## Testing
 - [ ] Adopt TDD for all new features going forward

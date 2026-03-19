@@ -12,9 +12,10 @@ defmodule BackendWeb.ClassroomController do
       |> json(%{error: "goal is required"})
     else
       learner_profile = params["learner_profile"]
+      llm_config = sanitize_llm_config(params["llm_config"])
       session_id = generate_session_id()
 
-      case Backend.Classroom.SessionSupervisor.start_session(session_id, goal, learner_profile) do
+      case Backend.Classroom.SessionSupervisor.start_session(session_id, goal, learner_profile, llm_config) do
         {:ok, _pid} ->
           Logger.info("Started classroom session #{session_id}")
           json(conn, %{session_id: session_id, status: "starting"})
@@ -63,4 +64,15 @@ defmodule BackendWeb.ClassroomController do
   defp generate_session_id do
     :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
   end
+
+  defp sanitize_llm_config(nil), do: nil
+  defp sanitize_llm_config(config) when is_map(config) do
+    config
+    |> Map.take(["provider", "openai_api_key", "anthropic_api_key", "ollama_base_url"])
+    |> case do
+      empty when map_size(empty) == 0 -> nil
+      sanitized -> sanitized
+    end
+  end
+  defp sanitize_llm_config(_), do: nil
 end

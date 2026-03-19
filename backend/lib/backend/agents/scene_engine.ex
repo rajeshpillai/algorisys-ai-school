@@ -40,12 +40,14 @@ defmodule Backend.Agents.SceneEngine do
   """
   @spec design_scene(String.t(), map(), String.t(), %LearnerState{}) ::
           {:ok, map()} | {:error, term()}
-  def design_scene(topic, selected_agent, action_type, learner_state) do
+  def design_scene(topic, selected_agent, action_type, learner_state, opts \\ []) do
     input = build_input(topic, selected_agent, action_type, learner_state)
+
+    llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
 
     with {:ok, prompt} <- PromptBuilder.load_prompt("scene-engine"),
          messages = PromptBuilder.build_scene_engine_messages(prompt, input),
-         {:ok, scene_spec} <- Client.chat_json(messages, model: @model) do
+         {:ok, scene_spec} <- Client.chat_json(messages, llm_opts) do
       Logger.info("Scene engine designed: #{inspect(scene_spec["scene"]["type"])}")
       {:ok, scene_spec}
     else

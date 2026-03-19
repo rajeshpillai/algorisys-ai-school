@@ -2,6 +2,7 @@ import { createSignal, createResource, For, Show } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import TopBar from '../components/layout/top-bar';
 import { api } from '../lib/api-client';
+import { getLlmPayload } from '../lib/llm-settings';
 
 const subjectIcons: Record<string, { icon: string; color: string }> = {
   programming: { icon: '{ }', color: '#3b82f6' },
@@ -24,7 +25,7 @@ export default function Landing() {
   const handleStart = async () => {
     const text = goal().trim();
     if (!text) return;
-    const res = await api.startClassroom(text) as any;
+    const res = await api.startClassroom(text, undefined, getLlmPayload()) as any;
     navigate(`/classroom/${res.session_id}`);
   };
 

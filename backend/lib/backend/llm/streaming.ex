@@ -31,18 +31,19 @@ defmodule Backend.LLM.Streaming do
     temperature = Keyword.get(opts, :temperature, 0.7)
     max_tokens = Keyword.get(opts, :max_tokens, 4096)
 
+    config = resolved_config(opts)
+
     case provider do
-      :openai -> stream_openai(messages, model, temperature, max_tokens, callback)
-      :anthropic -> stream_anthropic(messages, model, temperature, max_tokens, callback)
-      :ollama -> stream_ollama(messages, model, temperature, max_tokens, callback)
+      :openai -> stream_openai(messages, model, temperature, max_tokens, callback, config)
+      :anthropic -> stream_anthropic(messages, model, temperature, max_tokens, callback, config)
+      :ollama -> stream_ollama(messages, model, temperature, max_tokens, callback, config)
       other -> {:error, {:unsupported_provider, other}}
     end
   end
 
   # --- OpenAI streaming ---
 
-  defp stream_openai(messages, model, temperature, max_tokens, callback) do
-    config = llm_config()
+  defp stream_openai(messages, model, temperature, max_tokens, callback, config) do
     api_key = config[:openai_api_key]
 
     body = %{
@@ -131,8 +132,7 @@ defmodule Backend.LLM.Streaming do
 
   # --- Anthropic streaming ---
 
-  defp stream_anthropic(messages, model, temperature, max_tokens, callback) do
-    config = llm_config()
+  defp stream_anthropic(messages, model, temperature, max_tokens, callback, config) do
     api_key = config[:anthropic_api_key]
 
     {system_text, non_system_messages} = extract_system_message(messages)
@@ -223,8 +223,7 @@ defmodule Backend.LLM.Streaming do
 
   # --- Ollama streaming ---
 
-  defp stream_ollama(messages, model, temperature, max_tokens, callback) do
-    config = llm_config()
+  defp stream_ollama(messages, model, temperature, max_tokens, callback, config) do
     base_url = config[:ollama_base_url] || "http://localhost:11434"
 
     body = %{
@@ -330,7 +329,7 @@ defmodule Backend.LLM.Streaming do
   defp resolve_provider(opts) do
     case Keyword.get(opts, :provider) do
       nil ->
-        config = llm_config()
+        config = resolved_config(opts)
         provider_string = config[:provider] || "openai"
         String.to_existing_atom(provider_string)
 
@@ -342,8 +341,28 @@ defmodule Backend.LLM.Streaming do
     end
   end
 
-  defp llm_config do
-    Application.get_env(:backend, :llm, [])
+  defp resolved_config(opts) do
+    base = Application.get_env(:backend, :llm, [])
+
+    case Keyword.get(opts, :llm_config) do
+      nil ->
+        base
+
+      override when is_map(override) ->
+        overrides =
+          [
+            if(override["provider"], do: {:provider, override["provider"]}),
+            if(override["openai_api_key"], do: {:openai_api_key, override["openai_api_key"]}),
+            if(override["anthropic_api_key"], do: {:anthropic_api_key, override["anthropic_api_key"]}),
+            if(override["ollama_base_url"], do: {:ollama_base_url, override["ollama_base_url"]})
+          ]
+          |> Enum.reject(&is_nil/1)
+
+        Keyword.merge(base, overrides)
+
+      _ ->
+        base
+    end
   end
 
   defp format_messages(messages) do
