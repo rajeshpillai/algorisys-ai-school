@@ -1,26 +1,49 @@
-import type { Component } from 'solid-js';
+import { Show, type Component } from 'solid-js';
 import type { AgentMessage } from '../../lib/types';
+import { marked } from 'marked';
 import AgentAvatar from './agent-avatar';
 
 interface ChatMessageProps {
   message: AgentMessage;
   color?: string;
+  isStreaming?: boolean;
 }
 
 const ChatMessage: Component<ChatMessageProps> = (props) => {
+  const isUser = () => props.message.agent_role === 'learner';
+
+  const renderedContent = () => {
+    try {
+      return marked.parse(props.message.content, { async: false }) as string;
+    } catch {
+      return props.message.content;
+    }
+  };
+
   return (
     <>
-      <div class="chat-message">
+      <div
+        class="chat-message"
+        classList={{
+          'chat-message--user': isUser(),
+          'chat-message--streaming': props.isStreaming,
+        }}
+      >
         <AgentAvatar
           name={props.message.agent_name}
-          color={props.color || '#6366f1'}
+          color={isUser() ? '#64748b' : (props.color || '#6366f1')}
         />
         <div class="chat-message-body">
           <div class="chat-message-header">
             <span class="chat-message-name">{props.message.agent_name}</span>
-            <span class="chat-message-role">{props.message.agent_role}</span>
+            <Show when={props.message.agent_role && !isUser()}>
+              <span class="chat-message-role">{props.message.agent_role}</span>
+            </Show>
+            <Show when={props.isStreaming}>
+              <span class="chat-message-streaming-badge">streaming</span>
+            </Show>
           </div>
-          <div class="chat-message-content">{props.message.content}</div>
+          <div class="chat-message-content" innerHTML={renderedContent()} />
         </div>
       </div>
 
@@ -34,6 +57,14 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
 
         .chat-message:hover {
           background: var(--bg-tertiary);
+        }
+
+        .chat-message--user {
+          background: var(--bg-secondary);
+        }
+
+        .chat-message--streaming {
+          border-left: 3px solid var(--accent-color);
         }
 
         .chat-message-body {
@@ -59,12 +90,73 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
           color: var(--text-muted);
         }
 
+        .chat-message-streaming-badge {
+          font-size: 0.65rem;
+          color: var(--accent-color);
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
         .chat-message-content {
           font-size: 0.9rem;
           color: var(--text-secondary);
           line-height: 1.6;
-          white-space: pre-wrap;
           word-break: break-word;
+        }
+
+        .chat-message-content p {
+          margin: 0 0 0.5rem;
+        }
+
+        .chat-message-content p:last-child {
+          margin-bottom: 0;
+        }
+
+        .chat-message-content pre {
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          padding: 0.75rem;
+          overflow-x: auto;
+          font-size: 0.85rem;
+          margin: 0.5rem 0;
+        }
+
+        .chat-message-content code {
+          background: var(--bg-tertiary);
+          padding: 0.15rem 0.35rem;
+          border-radius: 4px;
+          font-size: 0.85em;
+        }
+
+        .chat-message-content pre code {
+          background: none;
+          padding: 0;
+        }
+
+        .chat-message-content ul,
+        .chat-message-content ol {
+          margin: 0.5rem 0;
+          padding-left: 1.5rem;
+        }
+
+        .chat-message-content li {
+          margin-bottom: 0.25rem;
+        }
+
+        .chat-message-content h1,
+        .chat-message-content h2,
+        .chat-message-content h3 {
+          margin: 0.75rem 0 0.5rem;
+          color: var(--text-primary);
+        }
+
+        .chat-message-content blockquote {
+          border-left: 3px solid var(--border-color);
+          margin: 0.5rem 0;
+          padding: 0.25rem 0.75rem;
+          color: var(--text-muted);
         }
       `}</style>
     </>

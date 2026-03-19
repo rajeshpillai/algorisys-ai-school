@@ -21,11 +21,11 @@ export default function Landing() {
     return res.subjects || [];
   });
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const text = goal().trim();
     if (!text) return;
-    // TODO: call api.startClassroom and navigate to classroom
-    console.log('Starting with goal:', text);
+    const res = await api.startClassroom(text) as any;
+    navigate(`/classroom/${res.session_id}`);
   };
 
   return (

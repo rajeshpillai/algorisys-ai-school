@@ -4,6 +4,7 @@ import AgentAvatar from './agent-avatar';
 
 interface ParticipantListProps {
   agents: AgentRole[];
+  activeAgent?: string | null;
 }
 
 const ParticipantList: Component<ParticipantListProps> = (props) => {
@@ -13,12 +14,20 @@ const ParticipantList: Component<ParticipantListProps> = (props) => {
         <h3 class="participant-list-title">Participants</h3>
         <For each={props.agents}>
           {(agent) => (
-            <div class="participant-item">
-              <AgentAvatar name={agent.name} color={agent.color} />
+            <div
+              class="participant-item"
+              classList={{
+                'participant-item--active': props.activeAgent === agent.name,
+              }}
+            >
+              <AgentAvatar name={agent.name} color={agent.color} size="small" />
               <div class="participant-info">
                 <span class="participant-name">{agent.name}</span>
                 <span class="participant-role">{agent.type}</span>
               </div>
+              {props.activeAgent === agent.name && (
+                <span class="participant-speaking">speaking</span>
+              )}
             </div>
           )}
         </For>
@@ -29,7 +38,6 @@ const ParticipantList: Component<ParticipantListProps> = (props) => {
 
       <style>{`
         .participant-list {
-          border-top: 1px solid var(--border-color);
           padding: 0.75rem 1rem;
         }
 
@@ -46,23 +54,43 @@ const ParticipantList: Component<ParticipantListProps> = (props) => {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          padding: 0.35rem 0;
+          padding: 0.4rem 0.5rem;
+          border-radius: 6px;
+          transition: background-color 0.15s;
+        }
+
+        .participant-item--active {
+          background: var(--accent-color);
+          background: rgba(99, 102, 241, 0.12);
         }
 
         .participant-info {
           display: flex;
           flex-direction: column;
+          flex: 1;
+          min-width: 0;
         }
 
         .participant-name {
           font-size: 0.85rem;
           font-weight: 500;
           color: var(--text-primary);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .participant-role {
           font-size: 0.7rem;
           color: var(--text-muted);
+        }
+
+        .participant-speaking {
+          font-size: 0.6rem;
+          color: var(--accent-color);
+          font-weight: 600;
+          text-transform: uppercase;
+          white-space: nowrap;
         }
 
         .participant-empty {

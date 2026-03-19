@@ -9,6 +9,9 @@ interface ClassroomPanelProps {
   agents: AgentRole[];
   onSendMessage: (content: string) => void;
   disabled?: boolean;
+  streamingAgent?: string | null;
+  streamingContent?: string;
+  activeAgent?: string | null;
 }
 
 const ClassroomPanel: Component<ClassroomPanelProps> = (props) => {
@@ -16,11 +19,16 @@ const ClassroomPanel: Component<ClassroomPanelProps> = (props) => {
     <>
       <div class="classroom-panel">
         <div class="classroom-main">
-          <ChatStream messages={props.messages} />
+          <ChatStream
+            messages={props.messages}
+            streamingAgent={props.streamingAgent || null}
+            streamingContent={props.streamingContent || ''}
+            agents={props.agents}
+          />
           <UserInput onSend={props.onSendMessage} disabled={props.disabled} />
         </div>
         <div class="classroom-sidebar">
-          <ParticipantList agents={props.agents} />
+          <ParticipantList agents={props.agents} activeAgent={props.activeAgent} />
         </div>
       </div>
 

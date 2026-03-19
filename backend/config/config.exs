@@ -10,7 +10,8 @@ import Config
 config :backend,
   ecto_repos: [Backend.Repo],
   generators: [timestamp_type: :utc_datetime],
-  content_dir: Path.expand("../../content", __DIR__)
+  content_dir: Path.expand("../../content", __DIR__),
+  prompts_dir: Path.expand("../../system-prompts", __DIR__)
 
 # Configure the endpoint
 config :backend, BackendWeb.Endpoint,

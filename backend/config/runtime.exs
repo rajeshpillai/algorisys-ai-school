@@ -1,5 +1,29 @@
 import Config
 
+# Load .env file if present (dev/test convenience)
+if config_env() in [:dev, :test] do
+  if File.exists?(".env") do
+    ".env"
+    |> File.read!()
+    |> String.split("\n", trim: true)
+    |> Enum.reject(&(String.starts_with?(&1, "#") or &1 == ""))
+    |> Enum.each(fn line ->
+      case String.split(line, "=", parts: 2) do
+        [key, value] ->
+          key = String.trim(key)
+          value = String.trim(value)
+          # Only set if not already set in the real environment
+          if System.get_env(key) == nil and value != "" do
+            System.put_env(key, value)
+          end
+
+        _ ->
+          :ok
+      end
+    end)
+  end
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration

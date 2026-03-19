@@ -15,7 +15,8 @@ defmodule BackendWeb.Router do
     get "/lessons/:id", LessonController, :show
 
     post "/classroom/start", ClassroomController, :start
+    get "/classroom/:id", ClassroomController, :show
     post "/classroom/:id/message", ClassroomController, :message
-    post "/classroom/:id/action", ClassroomController, :action
+    post "/classroom/:id/action", ClassroomController, :perform_action
   end
 end

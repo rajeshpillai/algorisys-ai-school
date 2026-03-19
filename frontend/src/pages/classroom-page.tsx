@@ -1,53 +1,100 @@
 import { useParams } from '@solidjs/router';
+import { onMount, onCleanup } from 'solid-js';
 import TopBar from '../components/layout/top-bar';
-import { ClassroomProvider } from '../context/classroom-context';
+import { ClassroomProvider, useClassroom } from '../context/classroom-context';
+import ChatStream from '../components/classroom/chat-stream';
+import ParticipantList from '../components/classroom/participant-list';
+import UserInput from '../components/classroom/user-input';
 
-export default function ClassroomPage() {
+function ClassroomContent() {
   const params = useParams<{ sessionId: string }>();
+  const classroom = useClassroom();
+
+  onMount(() => {
+    classroom.connect(params.sessionId);
+  });
+
+  onCleanup(() => {
+    classroom.disconnect();
+  });
 
   return (
-    <ClassroomProvider>
-      <div class="page-container">
+    <>
+      <div class="classroom-page">
         <TopBar />
-        <div class="page-content">
-          <h1 class="page-title">Classroom</h1>
-          <p class="page-subtitle">Session: {params.sessionId}</p>
-          <p class="page-placeholder">
-            The interactive classroom with AI agents will appear here.
-          </p>
+        <div class="classroom-header">
+          <span class="classroom-session-label">Session: {params.sessionId}</span>
         </div>
-
-        <style>{`
-          .page-container {
-            min-height: 100vh;
-            background: var(--bg-primary);
-          }
-
-          .page-content {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem;
-          }
-
-          .page-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-          }
-
-          .page-subtitle {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            margin-bottom: 1rem;
-          }
-
-          .page-placeholder {
-            color: var(--text-muted);
-            font-style: italic;
-          }
-        `}</style>
+        <div class="classroom-layout">
+          <div class="classroom-main">
+            <ChatStream
+              messages={classroom.messages()}
+              streamingAgent={classroom.streamingAgent()}
+              streamingContent={classroom.streamingContent()}
+              agents={classroom.agents()}
+            />
+            <UserInput
+              onSend={(content) => classroom.send(content)}
+              disabled={!!classroom.streamingAgent()}
+            />
+          </div>
+          <div class="classroom-sidebar">
+            <ParticipantList
+              agents={classroom.agents()}
+              activeAgent={classroom.streamingAgent()}
+            />
+          </div>
+        </div>
       </div>
+
+      <style>{`
+        .classroom-page {
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+          background: var(--bg-primary);
+        }
+
+        .classroom-header {
+          padding: 0.5rem 1rem;
+          border-bottom: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+        }
+
+        .classroom-session-label {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          font-family: monospace;
+        }
+
+        .classroom-layout {
+          flex: 1;
+          display: flex;
+          min-height: 0;
+        }
+
+        .classroom-main {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+
+        .classroom-sidebar {
+          width: 220px;
+          border-left: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          overflow-y: auto;
+        }
+      `}</style>
+    </>
+  );
+}
+
+export default function ClassroomPage() {
+  return (
+    <ClassroomProvider>
+      <ClassroomContent />
     </ClassroomProvider>
   );
 }
