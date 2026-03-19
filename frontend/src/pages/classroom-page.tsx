@@ -5,6 +5,7 @@ import { ClassroomProvider, useClassroom } from '../context/classroom-context';
 import ChatStream from '../components/classroom/chat-stream';
 import ParticipantList from '../components/classroom/participant-list';
 import UserInput from '../components/classroom/user-input';
+import CurriculumProgressBar from '../components/classroom/curriculum-progress';
 
 function ClassroomContent() {
   const params = useParams<{ sessionId: string }>();
@@ -22,6 +23,7 @@ function ClassroomContent() {
     <>
       <div class="classroom-page">
         <TopBar />
+        <CurriculumProgressBar progress={classroom.progress()} />
         <div class="classroom-header">
           <span class="classroom-session-label">Session: {params.sessionId}</span>
         </div>

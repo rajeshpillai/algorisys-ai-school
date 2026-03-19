@@ -1,6 +1,6 @@
 import { createContext, useContext, createSignal, createEffect, onCleanup, ParentComponent } from 'solid-js';
 import { joinClassroom, sendMessage, leaveClassroom } from '../lib/channel-client';
-import type { AgentMessage, AgentRole } from '../lib/types';
+import type { AgentMessage, AgentRole, CurriculumProgress } from '../lib/types';
 import type { Channel } from 'phoenix';
 
 interface ClassroomContextValue {
@@ -10,6 +10,7 @@ interface ClassroomContextValue {
   streamingAgent: () => string | null;
   streamingContent: () => string;
   isConnected: () => boolean;
+  progress: () => CurriculumProgress | null;
   connect: (sessionId: string) => void;
   send: (content: string) => void;
   disconnect: () => void;
@@ -24,6 +25,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
   const [streamingAgent, setStreamingAgent] = createSignal<string | null>(null);
   const [streamingContent, setStreamingContent] = createSignal('');
   const [isConnected, setIsConnected] = createSignal(false);
+  const [progress, setProgress] = createSignal<CurriculumProgress | null>(null);
 
   let channel: Channel | null = null;
   let streamingRole = '';
@@ -39,6 +41,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
     setAgents([]);
     setStreamingAgent(null);
     setStreamingContent('');
+    setProgress(null);
 
     channel = joinClassroom(id, {
       onAgentMessage: (msg: any) => {
@@ -83,6 +86,16 @@ export const ClassroomProvider: ParentComponent = (props) => {
         setStreamingAgent(null);
         setStreamingContent('');
         streamingRole = '';
+      },
+
+      onCurriculumProgress: (data: any) => {
+        setProgress({
+          total_lessons: data.total_lessons || 0,
+          completed_lessons: data.completed_lessons || 0,
+          current_topic: data.current_topic || null,
+          current_module_index: data.current_module_index || 0,
+          current_lesson_index: data.current_lesson_index || 0,
+        });
       },
     });
 
@@ -129,6 +142,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
         streamingAgent,
         streamingContent,
         isConnected,
+        progress,
         connect,
         send,
         disconnect,

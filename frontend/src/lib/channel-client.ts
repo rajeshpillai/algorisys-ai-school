@@ -18,6 +18,7 @@ export function joinClassroom(
     onAgentMessage: (msg: any) => void;
     onAgentChunk: (chunk: any) => void;
     onAgentDone: (data: any) => void;
+    onCurriculumProgress?: (data: any) => void;
   }
 ): Channel {
   const s = getSocket();
@@ -26,6 +27,9 @@ export function joinClassroom(
   channel.on('agent_message', callbacks.onAgentMessage);
   channel.on('agent_chunk', callbacks.onAgentChunk);
   channel.on('agent_done', callbacks.onAgentDone);
+  if (callbacks.onCurriculumProgress) {
+    channel.on('curriculum_progress', callbacks.onCurriculumProgress);
+  }
 
   channel.join()
     .receive('ok', () => console.log('Joined classroom:', sessionId))

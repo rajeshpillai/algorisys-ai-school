@@ -78,7 +78,7 @@ defmodule Backend.Agents.Orchestrator do
     %{
       current_topic: state[:current_topic] || state[:goal] || "unknown",
       current_scene: state[:current_scene] || "none",
-      lesson_plan: [state[:goal] || "Learn the topic"],
+      lesson_plan: build_lesson_plan(state),
       learner_state: %{
         understanding_score: learner.understanding_score,
         confidence: learner.confidence,
@@ -91,5 +91,26 @@ defmodule Backend.Agents.Orchestrator do
       available_agents: available_agents,
       available_scenes: @available_scenes
     }
+  end
+
+  defp build_lesson_plan(state) do
+    case state[:curriculum_plan] do
+      %{"modules" => modules} when is_list(modules) ->
+        Enum.flat_map(modules, fn mod ->
+          lessons = mod["lessons"] || []
+
+          Enum.map(lessons, fn lesson ->
+            %{
+              module: mod["title"] || "Module",
+              topic: lesson["title"] || lesson["concept"] || "Topic",
+              estimated_minutes: lesson["estimated_minutes"],
+              activity_types: lesson["activity_types"] || []
+            }
+          end)
+        end)
+
+      _ ->
+        [state[:goal] || "Learn the topic"]
+    end
   end
 end

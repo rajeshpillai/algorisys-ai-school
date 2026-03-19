@@ -70,18 +70,35 @@
 - [x] Module 02: Data Types (2 lessons)
 
 ## Curriculum-Driven Progression
-- [ ] Wire curriculum planner agent into pipeline (prompt exists, not called)
-- [ ] Generate structured syllabus on session start (topics, time allocation, sequence)
-- [ ] Track curriculum progress in session state (current topic index, time spent, topics remaining)
-- [ ] Auto-advance on scene complete — orchestrator initiates next topic without user prompt
-- [ ] Persist curriculum plan in session (DB: add curriculum_plan JSONB column)
-- [ ] Show progress indicator in classroom UI (e.g. "Topic 2/8 — Derivatives", time remaining)
+- [x] Wire curriculum planner agent into pipeline (prompt exists, not called)
+- [x] Generate structured syllabus on session start (topics, time allocation, sequence)
+- [x] Track curriculum progress in session state (current topic index, time spent, topics remaining)
+- [x] Auto-advance on scene complete — orchestrator initiates next topic without user prompt
+- [x] Persist curriculum plan in session (DB: add curriculum_plan JSONB column)
+- [x] Broadcast curriculum_progress event to frontend
+- [x] Show progress indicator in classroom UI (progress bar + topic/count)
+- [ ] Auto-advance should ask for confirmation before moving to next topic/chapter
+  - Show "Ready for next topic?" prompt with Continue / Ask Question buttons
+  - Let user ask follow-up questions before advancing
+  - Only auto-advance after user confirms (or configurable timeout)
 
 ## User Settings
 - [ ] Allow users to set their own LLM API keys (provider, key) via UI
 - [ ] Settings page — form for API key entry, provider selection (OpenAI/Anthropic/Ollama)
 - [ ] Backend endpoint to store/validate keys per user session
 - [ ] Pass user-provided keys to LLM client instead of server env vars
+
+## Testing
+- [ ] Adopt TDD for all new features going forward
+- [ ] Add retrospective tests for existing features:
+  - [ ] Backend: Session GenServer lifecycle (start, message, state transitions)
+  - [ ] Backend: Curriculum planner agent (plan generation, time extraction)
+  - [ ] Backend: Store module (create, save, load, append)
+  - [ ] Backend: LLM streaming (chunk parsing, callback delivery)
+  - [ ] Backend: Orchestrator / SceneEngine / RoleSynthesis agents
+  - [ ] Frontend: Classroom context (connect, send, progress updates)
+  - [ ] Frontend: Chat stream rendering
+  - [ ] Integration: Landing → session → classroom end-to-end
 
 ## Integration & Verification
 - [x] Frontend proxies /api/* to Phoenix backend

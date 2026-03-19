@@ -87,6 +87,19 @@ defmodule Backend.LLM.PromptBuilder do
   end
 
   @doc """
+  Build messages for the curriculum planner agent.
+  """
+  @spec build_curriculum_planner_messages(String.t(), map()) :: list(map())
+  def build_curriculum_planner_messages(curriculum_prompt, input_data) do
+    user_content = Jason.encode!(input_data, pretty: true)
+
+    [
+      %{role: "system", content: curriculum_prompt},
+      %{role: "user", content: user_content}
+    ]
+  end
+
+  @doc """
   Build messages for the scene engine agent.
   """
   @spec build_scene_engine_messages(String.t(), map()) :: list(map())

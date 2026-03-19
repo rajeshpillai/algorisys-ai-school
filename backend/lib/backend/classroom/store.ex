@@ -36,7 +36,10 @@ defmodule Backend.Classroom.Store do
           current_scene_spec: gen_server_state.current_scene_spec,
           current_topic: gen_server_state.current_topic,
           current_agent: gen_server_state.current_agent,
-          orchestrator_decision: gen_server_state.orchestrator_decision
+          orchestrator_decision: gen_server_state.orchestrator_decision,
+          curriculum_plan: gen_server_state.curriculum_plan,
+          current_module_index: gen_server_state.current_module_index,
+          current_lesson_index: gen_server_state.current_lesson_index
         })
         |> Repo.update()
     end

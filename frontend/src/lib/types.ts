@@ -77,6 +77,14 @@ export interface ClassroomSession {
   state: 'idle' | 'teaching' | 'discussion' | 'quiz' | 'playground' | 'summary';
 }
 
+export interface CurriculumProgress {
+  total_lessons: number;
+  completed_lessons: number;
+  current_topic: string | null;
+  current_module_index: number;
+  current_lesson_index: number;
+}
+
 export interface LearnerProfile {
   background: string;
   level: 'beginner' | 'intermediate' | 'advanced';

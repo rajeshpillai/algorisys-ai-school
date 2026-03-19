@@ -14,6 +14,9 @@ defmodule Backend.Classroom.Schemas.Session do
     field :current_topic, :string
     field :current_agent, :string
     field :orchestrator_decision, :map
+    field :curriculum_plan, :map
+    field :current_module_index, :integer, default: 0
+    field :current_lesson_index, :integer, default: 0
 
     has_many :messages, Backend.Classroom.Schemas.Message
 
@@ -25,7 +28,8 @@ defmodule Backend.Classroom.Schemas.Session do
     |> cast(attrs, [
       :id, :goal, :learner_profile, :state, :agents, :learner_state,
       :current_scene, :current_scene_spec, :current_topic,
-      :current_agent, :orchestrator_decision
+      :current_agent, :orchestrator_decision,
+      :curriculum_plan, :current_module_index, :current_lesson_index
     ])
     |> validate_required([:id, :goal, :state, :learner_state])
     |> validate_inclusion(:state, ~w(initializing teaching waiting))

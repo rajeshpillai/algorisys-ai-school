@@ -9,7 +9,7 @@ defmodule Backend.Classroom.Session do
 
   require Logger
 
-  alias Backend.Agents.{RoleSynthesis, Orchestrator, SceneEngine, TeachingAgent}
+  alias Backend.Agents.{CurriculumPlanner, RoleSynthesis, Orchestrator, SceneEngine, TeachingAgent}
   alias Backend.Classroom.{LearnerState, Store}
 
   defstruct [
@@ -19,6 +19,9 @@ defmodule Backend.Classroom.Session do
     agents: [],
     messages: [],
     learner_state: %LearnerState{},
+    curriculum_plan: nil,
+    current_module_index: 0,
+    current_lesson_index: 0,
     current_scene: nil,
     current_scene_spec: nil,
     current_topic: nil,
@@ -72,7 +75,8 @@ defmodule Backend.Classroom.Session do
           state: :initializing
         }
 
-        spawn_pipeline(state)
+        # Delay pipeline start slightly to let WebSocket client connect
+        Process.send_after(self(), :start_pipeline, 500)
         {:ok, state}
 
       persisted ->
@@ -85,6 +89,8 @@ defmodule Backend.Classroom.Session do
 
   @impl true
   def handle_call(:get_state, _from, state) do
+    {total_lessons, completed_lessons} = curriculum_progress(state)
+
     reply = %{
       id: state.id,
       goal: state.goal,
@@ -92,7 +98,14 @@ defmodule Backend.Classroom.Session do
       agents: Enum.map(state.agents, fn a -> a["name"] end),
       current_scene: state.current_scene,
       current_agent: state.current_agent,
-      message_count: length(state.messages)
+      current_topic: state.current_topic,
+      message_count: length(state.messages),
+      curriculum: %{
+        total_lessons: total_lessons,
+        completed_lessons: completed_lessons,
+        current_module_index: state.current_module_index,
+        current_lesson_index: state.current_lesson_index
+      }
     }
 
     {:reply, reply, state}
@@ -126,13 +139,19 @@ defmodule Backend.Classroom.Session do
   # --- All handle_info clauses grouped together ---
 
   @impl true
-  def handle_info({:pipeline_started, agents, decision, scene_spec, selected_agent}, state) do
+  def handle_info(:start_pipeline, state) do
+    spawn_pipeline(state)
+    {:noreply, state}
+  end
+
+  def handle_info({:pipeline_started, agents, decision, scene_spec, selected_agent, curriculum_plan}, state) do
     next_action = decision["next_action"] || %{}
     agent_name = next_action["agent"] || first_agent_name(agents)
     scene_type = next_action["scene"] || "lecture"
 
     new_state = %{state |
       agents: agents,
+      curriculum_plan: curriculum_plan,
       orchestrator_decision: decision,
       current_scene: scene_type,
       current_scene_spec: scene_spec,
@@ -142,6 +161,7 @@ defmodule Backend.Classroom.Session do
     }
 
     Store.save_state(new_state)
+    broadcast_progress(new_state)
     spawn_teaching(new_state, selected_agent, scene_spec)
 
     {:noreply, new_state}
@@ -170,13 +190,43 @@ defmodule Backend.Classroom.Session do
   def handle_info({:teaching_done, agent_name, agent_role, full_text}, state) do
     agent_msg = %{role: "assistant", content: full_text}
     new_messages = state.messages ++ [agent_msg]
-    new_state = %{state | messages: new_messages, state: :waiting}
+
+    # Advance curriculum position
+    new_state = advance_curriculum(%{state | messages: new_messages, state: :waiting})
 
     # Persist assistant message and updated state
     Store.append_message(state.id, "assistant", full_text, agent_name, agent_role)
     Store.save_state(new_state)
 
+    # Broadcast progress update to frontend
+    broadcast_progress(new_state)
+
+    # Auto-advance to next lesson if curriculum has more topics
+    maybe_auto_advance(new_state)
+
     {:noreply, new_state}
+  end
+
+  def handle_info(:auto_advance, %{state: :waiting} = state) do
+    {total, completed} = curriculum_progress(state)
+    Logger.info("Auto-advancing: lesson #{completed + 1}/#{total} — #{state.current_topic}")
+
+    broadcast(state.id, "agent_message", %{
+      id: generate_id(),
+      agent_name: "System",
+      agent_role: "system",
+      content: "Moving to next topic: **#{state.current_topic}** (#{completed + 1}/#{total})",
+      timestamp: System.system_time(:millisecond)
+    })
+
+    new_state = %{state | state: :teaching}
+    spawn_next_turn(new_state)
+    {:noreply, new_state}
+  end
+
+  def handle_info(:auto_advance, state) do
+    # If not in waiting state, ignore (teaching is already in progress)
+    {:noreply, state}
   end
 
   def handle_info({:teaching_error, _reason}, state) do
@@ -232,14 +282,41 @@ defmodule Backend.Classroom.Session do
             [fallback_agent()]
         end
 
-      # Step 2: Orchestrator
+      # Step 2: Curriculum Planning
+      curriculum_plan =
+        case CurriculumPlanner.generate_plan(goal, learner_profile) do
+          {:ok, plan} ->
+            modules = plan["modules"] || []
+            total_lessons = Enum.reduce(modules, 0, fn m, acc -> acc + length(m["lessons"] || []) end)
+            total_minutes = plan["total_estimated_minutes"] || "?"
+
+            broadcast(session_id, "agent_message", %{
+              id: generate_id(),
+              agent_name: "System",
+              agent_role: "system",
+              content: "Created a learning plan: #{length(modules)} modules, #{total_lessons} lessons (~#{total_minutes} min)",
+              timestamp: System.system_time(:millisecond)
+            })
+
+            plan
+
+          {:error, reason} ->
+            Logger.error("Curriculum planner failed: #{inspect(reason)}")
+            nil
+        end
+
+      # Determine first topic from curriculum
+      first_topic = get_lesson_topic(curriculum_plan, 0, 0) || goal
+
+      # Step 3: Orchestrator (now with curriculum plan)
       orchestrator_input = %{
-        current_topic: goal,
+        current_topic: first_topic,
         current_scene: nil,
         agents: agents,
         learner_state: learner_state,
         last_interaction: nil,
-        goal: goal
+        goal: goal,
+        curriculum_plan: curriculum_plan
       }
 
       decision =
@@ -252,7 +329,7 @@ defmodule Backend.Classroom.Session do
             Logger.error("Orchestrator failed: #{inspect(reason)}, using fallback")
             %{
               "next_action" => %{"agent" => first_agent_name(agents), "scene" => "lecture", "action_type" => "explain"},
-              "state_updates" => %{"focus_topic" => goal}
+              "state_updates" => %{"focus_topic" => first_topic}
             }
         end
 
@@ -261,19 +338,19 @@ defmodule Backend.Classroom.Session do
       action_type = next_action["action_type"] || "explain"
       selected_agent = find_agent(agents, agent_name)
 
-      # Step 3: Scene Engine
+      # Step 4: Scene Engine
       scene_spec =
-        case SceneEngine.design_scene(goal, selected_agent, action_type, learner_state) do
+        case SceneEngine.design_scene(first_topic, selected_agent, action_type, learner_state) do
           {:ok, spec} ->
             Logger.info("Scene engine designed: #{inspect((spec["scene"] || %{})["type"])}")
             spec
 
           {:error, reason} ->
             Logger.error("Scene engine failed: #{inspect(reason)}, using fallback")
-            fallback_scene_spec_static(goal, selected_agent)
+            fallback_scene_spec_static(first_topic, selected_agent)
         end
 
-      send(gen_server_pid, {:pipeline_started, agents, decision, scene_spec, selected_agent})
+      send(gen_server_pid, {:pipeline_started, agents, decision, scene_spec, selected_agent, curriculum_plan})
     end)
   end
 
@@ -284,6 +361,7 @@ defmodule Backend.Classroom.Session do
     agents = state.agents
     learner_state = state.learner_state
     last_interaction = build_last_interaction(state)
+    curriculum_plan = state.curriculum_plan
 
     Task.start(fn ->
       orchestrator_input = %{
@@ -292,7 +370,8 @@ defmodule Backend.Classroom.Session do
         agents: agents,
         learner_state: learner_state,
         last_interaction: last_interaction,
-        goal: goal
+        goal: goal,
+        curriculum_plan: curriculum_plan
       }
 
       decision =
@@ -378,6 +457,127 @@ defmodule Backend.Classroom.Session do
     end)
   end
 
+  # --- Curriculum Helpers ---
+
+  defp get_lesson_topic(nil, _mod_idx, _lesson_idx), do: nil
+
+  defp get_lesson_topic(%{"modules" => modules}, mod_idx, lesson_idx) do
+    case Enum.at(modules, mod_idx) do
+      nil -> nil
+      mod ->
+        case Enum.at(mod["lessons"] || [], lesson_idx) do
+          nil -> nil
+          lesson -> lesson["title"] || lesson["concept"]
+        end
+    end
+  end
+
+  defp get_lesson_topic(_, _, _), do: nil
+
+  defp advance_curriculum(%{curriculum_plan: nil} = state), do: state
+
+  defp advance_curriculum(%{curriculum_plan: %{"modules" => modules}} = state) do
+    mod_idx = state.current_module_index
+    lesson_idx = state.current_lesson_index
+
+    current_module = Enum.at(modules, mod_idx)
+    lessons = (current_module && current_module["lessons"]) || []
+
+    cond do
+      # More lessons in current module
+      lesson_idx + 1 < length(lessons) ->
+        new_lesson_idx = lesson_idx + 1
+        new_topic = get_lesson_topic(state.curriculum_plan, mod_idx, new_lesson_idx)
+
+        %{state |
+          current_lesson_index: new_lesson_idx,
+          current_topic: new_topic || state.current_topic
+        }
+
+      # More modules
+      mod_idx + 1 < length(modules) ->
+        new_mod_idx = mod_idx + 1
+        new_topic = get_lesson_topic(state.curriculum_plan, new_mod_idx, 0)
+
+        %{state |
+          current_module_index: new_mod_idx,
+          current_lesson_index: 0,
+          current_topic: new_topic || state.current_topic
+        }
+
+      # Curriculum complete
+      true ->
+        state
+    end
+  end
+
+  defp advance_curriculum(state), do: state
+
+  defp maybe_auto_advance(%{curriculum_plan: nil}), do: :ok
+
+  defp maybe_auto_advance(state) do
+    {total, completed} = curriculum_progress(state)
+
+    if completed < total do
+      # Brief pause before auto-advancing so the user can read
+      Process.send_after(self(), :auto_advance, 2_000)
+    else
+      broadcast(state.id, "agent_message", %{
+        id: generate_id(),
+        agent_name: "System",
+        agent_role: "system",
+        content: "Curriculum complete! You've covered all #{total} lessons. Great work!",
+        timestamp: System.system_time(:millisecond)
+      })
+    end
+
+    :ok
+  end
+
+  defp broadcast_progress(state) do
+    {total, completed} = curriculum_progress(state)
+
+    if total > 0 do
+      broadcast(state.id, "curriculum_progress", %{
+        total_lessons: total,
+        completed_lessons: completed,
+        current_topic: state.current_topic,
+        current_module_index: state.current_module_index,
+        current_lesson_index: state.current_lesson_index
+      })
+    end
+  end
+
+  defp curriculum_progress(%{curriculum_plan: nil}), do: {0, 0}
+
+  defp curriculum_progress(%{curriculum_plan: %{"modules" => modules}} = state) do
+    total =
+      Enum.reduce(modules, 0, fn m, acc ->
+        acc + length(m["lessons"] || [])
+      end)
+
+    # Count lessons completed before current position
+    completed =
+      Enum.reduce(Enum.with_index(modules), 0, fn {mod, mod_idx}, acc ->
+        lessons = mod["lessons"] || []
+
+        cond do
+          mod_idx < state.current_module_index ->
+            acc + length(lessons)
+
+          mod_idx == state.current_module_index ->
+            acc + state.current_lesson_index
+
+          true ->
+            acc
+        end
+      end)
+
+    {total, completed}
+  end
+
+  defp curriculum_progress(_state), do: {0, 0}
+
   # --- Persistence Helpers ---
 
   defp rebuild_from_persisted(persisted) do
@@ -393,6 +593,9 @@ defmodule Backend.Classroom.Session do
       agents: persisted.agents || [],
       messages: messages,
       learner_state: LearnerState.from_map(persisted.learner_state),
+      curriculum_plan: persisted.curriculum_plan,
+      current_module_index: persisted.current_module_index || 0,
+      current_lesson_index: persisted.current_lesson_index || 0,
       current_scene: persisted.current_scene,
       current_scene_spec: persisted.current_scene_spec,
       current_topic: persisted.current_topic,
