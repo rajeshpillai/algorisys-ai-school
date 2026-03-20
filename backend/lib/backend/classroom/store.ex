@@ -70,6 +70,16 @@ defmodule Backend.Classroom.Store do
     end
   end
 
+  def set_source_material(session_id, source_material_id) do
+    case Repo.get(Session, session_id) do
+      nil -> {:error, :not_found}
+      session ->
+        session
+        |> Session.changeset(%{source_material_id: source_material_id})
+        |> Repo.update()
+    end
+  end
+
   def list_sessions(learner_id) do
     from(s in Session,
       where: s.learner_id == ^learner_id,

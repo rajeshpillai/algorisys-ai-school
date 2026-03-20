@@ -14,7 +14,7 @@ export const api = {
   getSubjects: () => request('/subjects'),
   getCourse: (id: string) => request(`/courses/${id}`),
   getLesson: (id: string) => request(`/lessons/${id}`),
-  startClassroom: (goal: string, learnerProfile?: any, llmConfig?: Record<string, string> | null) =>
+  startClassroom: (goal: string, learnerProfile?: any, llmConfig?: Record<string, string> | null, sourceId?: string | null) =>
     request('/classroom/start', {
       method: 'POST',
       body: JSON.stringify({
@@ -22,8 +22,19 @@ export const api = {
         learner_id: getLearnerId(),
         learner_profile: learnerProfile,
         ...(llmConfig ? { llm_config: llmConfig } : {}),
+        ...(sourceId ? { source_id: sourceId } : {}),
       }),
     }),
+  uploadPdf: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/uploads/pdf`, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(err.error || 'Upload failed');
+    }
+    return res.json() as Promise<{ source_id: string; filename: string; page_count: number; char_count: number }>;
+  },
   getSessions: () =>
     request<{ sessions: any[] }>(`/sessions?learner_id=${getLearnerId()}`),
   resumeSession: (sessionId: string) =>

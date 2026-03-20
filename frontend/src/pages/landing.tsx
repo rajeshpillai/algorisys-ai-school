@@ -16,6 +16,8 @@ const defaultIcon = { icon: '📚', color: '#6366f1' };
 export default function Landing() {
   const [goal, setGoal] = createSignal('');
   const [initError, setInitError] = createSignal<string | null>(null);
+  const [uploadedFile, setUploadedFile] = createSignal<{ source_id: string; filename: string; page_count: number; char_count: number } | null>(null);
+  const [uploading, setUploading] = createSignal(false);
   const navigate = useNavigate();
 
   onMount(() => {
@@ -31,12 +33,30 @@ export default function Landing() {
     return res.subjects || [];
   });
 
+  const handleFileSelect = async (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setInitError(null);
+    try {
+      const result = await api.uploadPdf(file);
+      setUploadedFile(result);
+    } catch (err: any) {
+      setInitError(err.message || 'Failed to upload PDF');
+    } finally {
+      setUploading(false);
+      input.value = '';
+    }
+  };
+
   const handleStart = async () => {
     const text = goal().trim();
     if (!text) return;
     setInitError(null);
     try {
-      const res = await api.startClassroom(text, undefined, getLlmPayload()) as any;
+      const res = await api.startClassroom(text, undefined, getLlmPayload(), uploadedFile()?.source_id) as any;
       navigate(`/classroom/${res.session_id}`);
     } catch (err) {
       setInitError('Failed to start session. Please try again.');
@@ -73,6 +93,32 @@ export default function Landing() {
           <button class="start-button" onClick={handleStart}>
             Start Learning
           </button>
+        </div>
+
+        <div class="pdf-upload-row">
+          <Show when={!uploadedFile()}>
+            <label class="pdf-upload-label">
+              <input
+                type="file"
+                accept=".pdf"
+                class="pdf-upload-input"
+                onChange={handleFileSelect}
+                disabled={uploading()}
+              />
+              <span class="pdf-upload-btn">
+                {uploading() ? 'Uploading...' : 'Attach PDF (optional)'}
+              </span>
+            </label>
+          </Show>
+          <Show when={uploadedFile()}>
+            <div class="pdf-upload-chip">
+              <span class="pdf-upload-chip-name">{uploadedFile()!.filename}</span>
+              <span class="pdf-upload-chip-info">
+                {uploadedFile()!.page_count} pages
+              </span>
+              <button class="pdf-upload-chip-remove" onClick={() => setUploadedFile(null)}>&times;</button>
+            </div>
+          </Show>
         </div>
       </section>
 
@@ -229,6 +275,70 @@ export default function Landing() {
 
         .start-button:hover {
           background: var(--accent-hover);
+        }
+
+        .pdf-upload-row {
+          margin-top: 0.75rem;
+          display: flex;
+          justify-content: center;
+        }
+
+        .pdf-upload-input {
+          display: none;
+        }
+
+        .pdf-upload-btn {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 0.35rem 0.75rem;
+          border: 1px dashed var(--border-color);
+          border-radius: 6px;
+          transition: color 0.15s, border-color 0.15s;
+        }
+
+        .pdf-upload-btn:hover {
+          color: var(--text-primary);
+          border-color: var(--text-secondary);
+        }
+
+        .pdf-upload-chip {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.35rem 0.75rem;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          font-size: 0.8rem;
+        }
+
+        .pdf-upload-chip-name {
+          color: var(--text-primary);
+          font-weight: 500;
+          max-width: 200px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .pdf-upload-chip-info {
+          color: var(--text-muted);
+          font-size: 0.7rem;
+        }
+
+        .pdf-upload-chip-remove {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          font-size: 1.1rem;
+          cursor: pointer;
+          padding: 0;
+          line-height: 1;
+        }
+
+        .pdf-upload-chip-remove:hover {
+          color: var(--text-primary);
         }
 
         .subjects-section {

@@ -31,13 +31,16 @@ defmodule Backend.Agents.TeachingAgent do
   def teach(role_spec, scene_spec, conversation_history, learner_state, callback, opts \\ []) do
     case PromptBuilder.load_prompt("teaching-agent") do
       {:ok, base_prompt} ->
+        source_content = Keyword.get(opts, :source_content, "")
+
         messages =
           PromptBuilder.build_teaching_messages(
             base_prompt,
             role_spec,
             extract_scene(scene_spec),
             conversation_history,
-            LearnerState.to_map(learner_state)
+            LearnerState.to_map(learner_state),
+            source_content
           )
 
         # If there are no user messages in history, add a starter message

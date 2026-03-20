@@ -151,6 +151,40 @@ defmodule Backend.LLM.PromptBuilder do
     [system_msg | history]
   end
 
+  @doc """
+  Build teaching messages with optional source material content.
+  Appends source content as a system message after the main prompt.
+  """
+  def build_teaching_messages(
+        teaching_prompt,
+        role_spec,
+        scene_spec,
+        conversation_history,
+        learner_state,
+        source_content
+      )
+      when is_binary(source_content) and source_content != "" do
+    messages = build_teaching_messages(teaching_prompt, role_spec, scene_spec, conversation_history, learner_state)
+
+    source_msg = %{
+      role: "system",
+      content: """
+      ## Source Material (from uploaded document)
+      Use this content as the primary reference for your teaching. Ground your explanations,
+      examples, and assessments in this material. Do not contradict it.
+
+      #{source_content}
+      """
+    }
+
+    # Insert source message right after the system prompt
+    [hd(messages), source_msg | tl(messages)]
+  end
+
+  def build_teaching_messages(tp, rs, ss, ch, ls, _no_source) do
+    build_teaching_messages(tp, rs, ss, ch, ls)
+  end
+
   # --- Private helpers ---
 
   defp prompt_path(prompt_name) do

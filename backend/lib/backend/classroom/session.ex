@@ -28,6 +28,7 @@ defmodule Backend.Classroom.Session do
     current_agent: nil,
     orchestrator_decision: nil,
     llm_config: nil,
+    source_material: nil,
     state: :initializing
   ]
 
@@ -85,6 +86,17 @@ defmodule Backend.Classroom.Session do
       persisted ->
         # Resume from DB
         state = rebuild_from_persisted(persisted)
+        # Load source material if linked
+        state =
+          if persisted.source_material_id do
+            case Backend.Content.SourceMaterial.get(persisted.source_material_id) do
+              nil -> state
+              source -> %{state | source_material: source}
+            end
+          else
+            state
+          end
+
         Logger.info("Resumed session #{session_id} from database")
         {:ok, state}
     end
@@ -435,6 +447,16 @@ defmodule Backend.Classroom.Session do
     learner_state = state.learner_state
     llm_config = state.llm_config
     llm_opts = if llm_config, do: [llm_config: llm_config], else: []
+
+    # Inject relevant excerpt from source material if available
+    llm_opts =
+      if state.source_material do
+        topic = state.current_topic || state.goal
+        excerpt = Backend.Content.SourceMaterial.extract_relevant_excerpt(state.source_material, topic)
+        if excerpt != "", do: Keyword.put(llm_opts, :source_content, excerpt), else: llm_opts
+      else
+        llm_opts
+      end
 
     Task.start(fn ->
       callback = fn

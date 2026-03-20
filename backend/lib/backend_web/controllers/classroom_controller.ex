@@ -12,15 +12,20 @@ defmodule BackendWeb.ClassroomController do
       |> json(%{error: "goal is required"})
     else
       learner_id = params["learner_id"]
+      source_id = params["source_id"]
       learner_profile = params["learner_profile"]
       llm_config = sanitize_llm_config(params["llm_config"])
       session_id = generate_session_id()
 
       case Backend.Classroom.SessionSupervisor.start_session(session_id, goal, learner_profile, llm_config) do
         {:ok, _pid} ->
-          # Store learner_id on the session record
+          # Store learner_id and source_material_id on the session record
           if learner_id do
             Backend.Classroom.Store.set_learner_id(session_id, learner_id)
+          end
+
+          if source_id do
+            Backend.Classroom.Store.set_source_material(session_id, source_id)
           end
 
           Logger.info("Started classroom session #{session_id}")

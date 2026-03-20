@@ -15,6 +15,7 @@ defmodule BackendWeb.Router do
     get "/lessons/:id", LessonController, :show
 
     get "/sessions", SessionHistoryController, :index
+    post "/uploads/pdf", UploadController, :create
 
     post "/classroom/start", ClassroomController, :start
     get "/classroom/:id", ClassroomController, :show
