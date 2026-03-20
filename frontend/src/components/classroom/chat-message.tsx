@@ -12,11 +12,14 @@ interface ChatMessageProps {
 const ChatMessage: Component<ChatMessageProps> = (props) => {
   const isUser = () => props.message.agent_role === 'learner';
 
+  const cleanContent = () =>
+    props.message.content.replace(/\[SCENE_COMPLETE\]/g, '').trimEnd();
+
   const renderedContent = () => {
     try {
-      return marked.parse(props.message.content, { async: false }) as string;
+      return marked.parse(cleanContent(), { async: false }) as string;
     } catch {
-      return props.message.content;
+      return cleanContent();
     }
   };
 

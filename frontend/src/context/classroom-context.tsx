@@ -18,6 +18,7 @@ interface ClassroomContextValue {
   activeQuiz: () => QuizData | null;
   quizResult: () => QuizGradeResult | null;
   initError: () => string | null;
+  isProcessing: () => boolean;
   connect: (sessionId: string) => void;
   send: (content: string) => void;
   confirmAdvance: () => void;
@@ -42,6 +43,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
   const [activeQuiz, setActiveQuiz] = createSignal<QuizData | null>(null);
   const [quizResult, setQuizResult] = createSignal<QuizGradeResult | null>(null);
   const [initError, setInitError] = createSignal<string | null>(null);
+  const [isProcessing, setIsProcessing] = createSignal(false);
 
   let channel: Channel | null = null;
   let streamingRole = '';
@@ -80,6 +82,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
       onAgentChunk: (chunk: any) => {
         // Dismiss advance prompt when teaching resumes
         if (advancePrompt()) setAdvancePrompt(null);
+        setIsProcessing(false);
 
         const agentName = chunk.agent_name || chunk.agent || 'Agent';
         if (streamingAgent() !== agentName) {
@@ -113,6 +116,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
         }
         setStreamingAgent(null);
         setStreamingContent('');
+        setIsProcessing(false);
         streamingRole = '';
       },
 
@@ -140,6 +144,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
       },
 
       onInitError: (data: any) => {
+        setIsProcessing(false);
         setInitError(data.reason || 'Session initialization failed.');
       },
     });
@@ -164,12 +169,14 @@ export const ClassroomProvider: ParentComponent = (props) => {
     };
     setMessages((prev) => [...prev, userMsg]);
 
+    setIsProcessing(true);
     sendMessage(channel, content);
   };
 
   const confirmAdvance = () => {
     if (!channel) return;
     setAdvancePrompt(null);
+    setIsProcessing(true);
     sendAction(channel, 'continue');
   };
 
@@ -201,6 +208,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
     // If resuming and there's a pending advance prompt, auto-continue
     if (wasPaused && advancePrompt() && channel) {
       setAdvancePrompt(null);
+      setIsProcessing(true);
       sendAction(channel, 'continue');
     }
   };
@@ -236,6 +244,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
         activeQuiz,
         quizResult,
         initError,
+        isProcessing,
         connect,
         send,
         confirmAdvance,

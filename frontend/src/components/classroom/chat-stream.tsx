@@ -7,6 +7,7 @@ interface ChatStreamProps {
   streamingAgent: string | null;
   streamingContent: string;
   agents: AgentRole[];
+  isProcessing?: boolean;
 }
 
 const ChatStream: Component<ChatStreamProps> = (props) => {
@@ -21,6 +22,7 @@ const ChatStream: Component<ChatStreamProps> = (props) => {
   createEffect(() => {
     props.messages.length;
     props.streamingContent;
+    props.isProcessing;
     scrollToBottom();
   });
 
@@ -31,6 +33,7 @@ const ChatStream: Component<ChatStreamProps> = (props) => {
 
   const isWaiting = () =>
     props.messages.length === 0 && !props.streamingAgent;
+
 
   return (
     <>
@@ -54,6 +57,17 @@ const ChatStream: Component<ChatStreamProps> = (props) => {
             />
           )}
         </For>
+
+        <Show when={props.isProcessing && !props.streamingAgent}>
+          <div class="chat-thinking-reply">
+            <div class="thinking-indicator">
+              <span class="thinking-dot" />
+              <span class="thinking-dot" />
+              <span class="thinking-dot" />
+            </div>
+            <span class="thinking-text">Thinking...</span>
+          </div>
+        </Show>
 
         <Show when={props.streamingAgent && props.streamingContent}>
           <ChatMessage
@@ -116,6 +130,14 @@ const ChatStream: Component<ChatStreamProps> = (props) => {
         .thinking-text {
           font-size: 0.85rem;
           font-style: italic;
+        }
+
+        .chat-thinking-reply {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.25rem;
+          color: var(--text-muted);
         }
       `}</style>
     </>

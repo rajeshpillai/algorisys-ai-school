@@ -51,6 +51,7 @@ function ClassroomContent() {
               streamingAgent={classroom.streamingAgent()}
               streamingContent={classroom.streamingContent()}
               agents={classroom.agents()}
+              isProcessing={classroom.isProcessing()}
             />
             <Show when={classroom.activeQuiz()}>
               <QuizCard
