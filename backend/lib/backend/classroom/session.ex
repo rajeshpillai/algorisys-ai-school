@@ -28,6 +28,7 @@ defmodule Backend.Classroom.Session do
     current_agent: nil,
     orchestrator_decision: nil,
     llm_config: nil,
+    source_material: nil,
     state: :initializing
   ]
 
@@ -85,6 +86,17 @@ defmodule Backend.Classroom.Session do
       persisted ->
         # Resume from DB
         state = rebuild_from_persisted(persisted)
+        # Load source material if linked
+        state =
+          if persisted.source_material_id do
+            case Backend.Content.SourceMaterial.get(persisted.source_material_id) do
+              nil -> state
+              source -> %{state | source_material: source}
+            end
+          else
+            state
+          end
+
         Logger.info("Resumed session #{session_id} from database")
         {:ok, state}
     end
@@ -153,6 +165,21 @@ defmodule Backend.Classroom.Session do
 
   @impl true
   def handle_info(:start_pipeline, state) do
+    # Reload from DB to pick up source_material_id set by the controller
+    state =
+      case Store.load_session(state.id) do
+        nil -> state
+        persisted ->
+          if persisted.source_material_id && is_nil(state.source_material) do
+            case Backend.Content.SourceMaterial.get(persisted.source_material_id) do
+              nil -> state
+              source -> %{state | source_material: source}
+            end
+          else
+            state
+          end
+      end
+
     spawn_pipeline(state)
     {:noreply, state}
   end
@@ -233,26 +260,13 @@ defmodule Backend.Classroom.Session do
       completed_lessons: completed,
       total_lessons: total,
       current_module_index: state.current_module_index,
-      current_lesson_index: state.current_lesson_index,
-      timeout_seconds: 30
+      current_lesson_index: state.current_lesson_index
     })
 
-    # Auto-advance after 30s if user doesn't respond
-    Process.send_after(self(), :auto_advance_timeout, 30_000)
     {:noreply, state}
   end
 
   def handle_info(:prompt_advance, state) do
-    {:noreply, state}
-  end
-
-  def handle_info(:auto_advance_timeout, %{state: :awaiting_advance} = state) do
-    Logger.info("Auto-advance timeout — proceeding to next topic")
-    do_advance(state)
-  end
-
-  def handle_info(:auto_advance_timeout, state) do
-    # Already advanced or user responded — ignore
     {:noreply, state}
   end
 
@@ -280,6 +294,21 @@ defmodule Backend.Classroom.Session do
     learner_state = state.learner_state
     llm_config = state.llm_config
     llm_opts = if llm_config, do: [llm_config: llm_config], else: []
+
+    # Get source material summary if attached
+    source_summary =
+      if state.source_material do
+        Backend.Content.SourceMaterial.get_summary(state.source_material)
+      else
+        nil
+      end
+
+    llm_opts =
+      if source_summary do
+        Keyword.put(llm_opts, :source_summary, source_summary)
+      else
+        llm_opts
+      end
 
     Task.start(fn ->
       broadcast(session_id, "agent_message", %{
@@ -448,6 +477,16 @@ defmodule Backend.Classroom.Session do
     learner_state = state.learner_state
     llm_config = state.llm_config
     llm_opts = if llm_config, do: [llm_config: llm_config], else: []
+
+    # Inject relevant excerpt from source material if available
+    llm_opts =
+      if state.source_material do
+        topic = state.current_topic || state.goal
+        excerpt = Backend.Content.SourceMaterial.extract_relevant_excerpt(state.source_material, topic)
+        if excerpt != "", do: Keyword.put(llm_opts, :source_content, excerpt), else: llm_opts
+      else
+        llm_opts
+      end
 
     Task.start(fn ->
       callback = fn

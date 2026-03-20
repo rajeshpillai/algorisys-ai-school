@@ -131,12 +131,18 @@
   - [ ] Toggleable in settings
 
 ### Interactive Scenes
-- [ ] Whiteboard / drawing canvas
-  - [ ] Agent-driven drawing (text, shapes, charts, formulas)
-  - [ ] Canvas-based rendering with undo/redo
-  - [ ] Multi-slide whiteboard support (one per scene)
-- [ ] HTML simulation scenes — agent-generated interactive demos embedded via iframe
+- [x] Whiteboard / drawing canvas — agent-generated SVG diagrams via ~~~whiteboard blocks
+- [x] HTML simulation scenes — agent-generated interactive demos via ~~~simulation blocks (sandboxed iframe)
 - [x] Formula rendering — KaTeX for math/science subjects
+- [x] Rich content parser — unified pipeline for all block types with streaming placeholders
+- [x] Test playground page — /playground route for visual QA of all rich content types
+- [ ] Whiteboard enhancements
+  - [ ] Canvas-based rendering with undo/redo (user can annotate)
+  - [ ] Multi-slide whiteboard support (one per scene)
+  - [ ] Zoom/pan controls for complex diagrams
+- [ ] Simulation enhancements
+  - [ ] Pre-built simulation templates (sorting, physics, data structures)
+  - [ ] Communication between simulation iframe and parent (score reporting)
 
 ### Quiz & Grading Enhancements
 - [x] Multiple question types: single-choice, multiple-choice, short-answer
@@ -145,10 +151,55 @@
 - [x] Quiz header showing question count and topic
 
 ### Slide / Presentation Mode
-- [ ] Structured slide scenes (beyond chat — visual presentation of concepts)
-- [ ] Slide animations and transitions
+- [x] Structured slide scenes — ~~~slides blocks with JSON array of {title, body} slides
+- [x] SlideViewer component with Prev/Next navigation, dot indicators, keyboard support
+- [x] Markdown + KaTeX + code blocks supported in slide body
+- [x] Streaming placeholder ("Preparing presentation...")
+- [ ] Slide animations and transitions (crossfade between slides)
+- [ ] Fullscreen presentation mode (expand slide viewer to full viewport)
 - [ ] Agent spotlight/laser pointer actions (highlight elements during teaching)
-- [ ] Auto-advance slides at scene boundaries
+- [ ] Slide thumbnails sidebar for quick navigation
+- [ ] Export slides as standalone HTML or PDF
+
+### How Other Tools Handle Rich Teaching Content (Research Notes)
+Reference products and their approaches — for future feature planning:
+
+**Gamma / Beautiful.ai / Tome (AI slide generators)**
+- Generate full slide decks from prompts with layout templates
+- Use predefined visual themes (typography, color palettes, spacing)
+- Support images, charts, icons alongside text
+- Takeaway: We could add visual themes to SlideViewer and image generation per slide
+
+**Brilliant.org (interactive learning)**
+- Step-by-step interactive problems with immediate feedback
+- Inline simulations (drag, manipulate, visualize)
+- Progress tracking per concept
+- Takeaway: Our simulation blocks could support structured step-through with state reporting
+
+**Livebook (Elixir interactive notebooks)**
+- Live code cells with immediate execution and output
+- Markdown cells interspersed with code
+- Mermaid diagram support
+- Takeaway: We could add a ~~~code-editor block type for live coding exercises
+
+**Jupyter / Google Colab (computational notebooks)**
+- Cell-based: markdown + code + output interleaved
+- Rich output (charts, tables, images, interactive widgets)
+- Takeaway: Our fenced-block approach is similar but streamed — could add chart blocks (~~~chart with Vega-Lite spec)
+
+**Khan Academy / Coursera (structured courses)**
+- Video + transcript + interactive exercises in sequence
+- Progress bars per module/lesson
+- Spaced repetition for review
+- Takeaway: We have curriculum progression — could add spaced repetition quizzes
+
+**Possible future rich block types (extensibility plan):**
+- ~~~chart — Vega-Lite/Chart.js spec for data visualizations
+- ~~~code-editor — editable code with run button (sandboxed execution)
+- ~~~mermaid — Mermaid.js diagrams (flowcharts, sequence diagrams, ER diagrams)
+- ~~~timeline — visual timeline for historical/sequential content
+- ~~~comparison — side-by-side comparison tables
+- Adding any new type: update regex in rich-content-parser.ts → new component → new Match in chat-message.tsx → update teaching-agent prompt
 
 ### Content Input Methods
 - [ ] PDF upload and parsing — extract text + images, use as lesson source
@@ -210,6 +261,15 @@
 - [ ] Learning analytics dashboard (time spent, topics covered, quiz scores)
 - [ ] Learner model signals visible in UI (understanding level per topic)
 - [ ] Progress export (CSV/JSON)
+
+### Token Usage Optimization
+- [ ] Trim conversation history sent to LLM (sliding window or summarization)
+- [ ] Use cheaper models (gpt-4o-mini) for pipeline agents, reserve gpt-4o for teaching
+- [ ] Cache role synthesis and curriculum plans — don't regenerate on resume
+- [ ] Limit scene engine output size (compact JSON schema)
+- [ ] Add token usage tracking per session (log prompt + completion tokens)
+- [ ] Set max_tokens on LLM calls to cap runaway responses
+- [ ] Debounce rapid user actions that trigger LLM calls
 
 ### Auth & Administration
 - [ ] User authentication (email/password + OAuth)

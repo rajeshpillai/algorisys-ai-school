@@ -48,7 +48,8 @@ test.describe('Course Browser', () => {
     const res = await request.get(`/api/courses/${courseId}`);
     expect(res.ok()).toBe(true);
 
-    const course = await res.json();
+    const data = await res.json();
+    const course = data.course;
     expect(course).toHaveProperty('title');
     expect(course).toHaveProperty('modules');
     expect(Array.isArray(course.modules)).toBe(true);

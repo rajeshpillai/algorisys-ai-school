@@ -1,6 +1,9 @@
-import { Show, type Component } from 'solid-js';
+import { Show, For, Suspense, type Component } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import type { AgentMessage } from '../../lib/types';
 import { renderMarkdown } from '../../lib/markdown-renderer';
+import { parseRichContent } from '../../lib/rich-content-parser';
+import { getBlockDefinition, getLoadingMessage } from '../../lib/rich-block-registry';
 import AgentAvatar from './agent-avatar';
 
 interface ChatMessageProps {
@@ -15,7 +18,37 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
   const cleanContent = () =>
     props.message.content.replace(/\[SCENE_COMPLETE\]/g, '').trimEnd();
 
-  const renderedContent = () => renderMarkdown(cleanContent());
+  const segments = () => parseRichContent(cleanContent());
+
+  const renderSegment = (segment: { type: string; content?: string; blockType?: string }) => {
+    if (segment.type === 'markdown') {
+      return <div class="chat-message-content" innerHTML={renderMarkdown(segment.content!)} />;
+    }
+    if (segment.type === 'loading') {
+      return (
+        <div class="rich-content-loading">
+          <div class="rich-content-loading-spinner" />
+          <span>{getLoadingMessage(segment.blockType!)}</span>
+        </div>
+      );
+    }
+    // Look up component from registry
+    const def = getBlockDefinition(segment.type);
+    if (def) {
+      return (
+        <Suspense fallback={
+          <div class="rich-content-loading">
+            <div class="rich-content-loading-spinner" />
+            <span>{def.loadingMessage}</span>
+          </div>
+        }>
+          <Dynamic component={def.component} content={segment.content!} />
+        </Suspense>
+      );
+    }
+    // Unknown block type — render as markdown fallback
+    return <div class="chat-message-content" innerHTML={renderMarkdown(segment.content || '')} />;
+  };
 
   return (
     <>
@@ -40,7 +73,9 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
               <span class="chat-message-streaming-badge">streaming</span>
             </Show>
           </div>
-          <div class="chat-message-content" innerHTML={renderedContent()} />
+          <For each={segments()}>
+            {(segment) => renderSegment(segment as any)}
+          </For>
         </div>
       </div>
 
@@ -165,6 +200,32 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
 
         .chat-message-content .katex {
           font-size: 1.05em;
+        }
+
+        .rich-content-loading {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          margin: 0.75rem 0;
+          padding: 1rem 1.25rem;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-secondary);
+          color: var(--text-muted);
+          font-size: 0.85rem;
+        }
+
+        .rich-content-loading-spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid var(--border-color);
+          border-top-color: var(--accent-color);
+          border-radius: 50%;
+          animation: rich-loading-spin 0.8s linear infinite;
+        }
+
+        @keyframes rich-loading-spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>

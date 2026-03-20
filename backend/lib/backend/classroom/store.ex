@@ -60,6 +60,46 @@ defmodule Backend.Classroom.Store do
     |> Repo.insert()
   end
 
+  def set_learner_id(session_id, learner_id) do
+    case Repo.get(Session, session_id) do
+      nil -> {:error, :not_found}
+      session ->
+        session
+        |> Session.changeset(%{learner_id: learner_id})
+        |> Repo.update()
+    end
+  end
+
+  def set_source_material(session_id, source_material_id) do
+    case Repo.get(Session, session_id) do
+      nil -> {:error, :not_found}
+      session ->
+        session
+        |> Session.changeset(%{source_material_id: source_material_id})
+        |> Repo.update()
+    end
+  end
+
+  def list_sessions(learner_id) do
+    from(s in Session,
+      where: s.learner_id == ^learner_id,
+      left_join: m in assoc(s, :messages),
+      group_by: s.id,
+      order_by: [desc: s.updated_at],
+      select: %{
+        id: s.id,
+        goal: s.goal,
+        state: s.state,
+        current_topic: s.current_topic,
+        agents: s.agents,
+        created_at: s.inserted_at,
+        last_activity: s.updated_at,
+        message_count: count(m.id)
+      }
+    )
+    |> Repo.all()
+  end
+
   def load_session(session_id) do
     Session
     |> Repo.get(session_id)

@@ -169,7 +169,7 @@ describe('ClassroomProvider', () => {
         next_topic: 'Derivatives',
         completed_lessons: 1,
         total_lessons: 5,
-        timeout_seconds: 30,
+
       });
       expect(ctx.advancePrompt()).not.toBeNull();
 
@@ -226,14 +226,14 @@ describe('ClassroomProvider', () => {
         next_topic: 'Integrals',
         completed_lessons: 2,
         total_lessons: 8,
-        timeout_seconds: 30,
+
       });
 
       expect(ctx.advancePrompt()).toEqual({
         next_topic: 'Integrals',
         completed_lessons: 2,
         total_lessons: 8,
-        timeout_seconds: 30,
+
       });
     });
   });
@@ -291,7 +291,7 @@ describe('ClassroomProvider', () => {
         next_topic: 'Next',
         completed_lessons: 1,
         total_lessons: 5,
-        timeout_seconds: 30,
+
       });
 
       ctx.send('I have a question');
@@ -320,7 +320,7 @@ describe('ClassroomProvider', () => {
         next_topic: 'Next',
         completed_lessons: 1,
         total_lessons: 5,
-        timeout_seconds: 30,
+
       });
 
       ctx.confirmAdvance();
@@ -340,7 +340,7 @@ describe('ClassroomProvider', () => {
         next_topic: 'Next',
         completed_lessons: 1,
         total_lessons: 5,
-        timeout_seconds: 30,
+
       });
 
       ctx.dismissAdvance();
@@ -375,7 +375,7 @@ describe('ClassroomProvider', () => {
         next_topic: 'Next',
         completed_lessons: 1,
         total_lessons: 5,
-        timeout_seconds: 30,
+
       });
 
       // Resume — should auto-continue

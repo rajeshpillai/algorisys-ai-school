@@ -8,13 +8,20 @@ import UserInput from '../components/classroom/user-input';
 import CurriculumProgressBar from '../components/classroom/curriculum-progress';
 import AdvancePromptCard from '../components/classroom/advance-prompt';
 import QuizCard from '../components/classroom/quiz-card';
+import { api } from '../lib/api-client';
 
 function ClassroomContent() {
   const params = useParams<{ sessionId: string }>();
   const classroom = useClassroom();
   const navigate = useNavigate();
 
-  onMount(() => {
+  onMount(async () => {
+    // Try to resume the GenServer if it's not running (e.g. coming from history)
+    try {
+      await api.resumeSession(params.sessionId);
+    } catch {
+      // Session may already be active or may not exist in DB — proceed anyway
+    }
     classroom.connect(params.sessionId);
   });
 

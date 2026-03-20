@@ -31,17 +31,23 @@ defmodule Backend.Agents.TeachingAgent do
   def teach(role_spec, scene_spec, conversation_history, learner_state, callback, opts \\ []) do
     case PromptBuilder.load_prompt("teaching-agent") do
       {:ok, base_prompt} ->
+        source_content = Keyword.get(opts, :source_content, "")
+
         messages =
           PromptBuilder.build_teaching_messages(
             base_prompt,
             role_spec,
             extract_scene(scene_spec),
             conversation_history,
-            LearnerState.to_map(learner_state)
+            LearnerState.to_map(learner_state),
+            source_content
           )
 
         # If there are no user messages in history, add a starter message
         messages = ensure_user_message(messages, role_spec, scene_spec)
+
+        # Inject scene-specific output format reminder
+        messages = inject_format_hint(messages, extract_scene(scene_spec))
 
         llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
         Streaming.stream_chat(messages, callback, llm_opts)
@@ -57,6 +63,38 @@ defmodule Backend.Agents.TeachingAgent do
   # We want the inner "scene" map for the teaching prompt.
   defp extract_scene(%{"scene" => scene}), do: scene
   defp extract_scene(scene), do: scene
+
+  # Scene-type format hints — data-driven registry.
+  # To add a new rich content type: add an entry here and update the teaching-agent prompt.
+  @format_hints %{
+    "whiteboard" => """
+    IMPORTANT: This is a whiteboard scene. You MUST include at least one SVG diagram \
+    wrapped in a ~~~whiteboard fenced block. Use simple SVG elements (rect, circle, line, \
+    text, path) with viewBox="0 0 600 400". Do not skip the diagram.\
+    """,
+    "simulation" => """
+    IMPORTANT: This is a simulation scene. You MUST include a self-contained interactive \
+    HTML demo wrapped in a ~~~simulation fenced block. Use vanilla JavaScript only, \
+    keep it under 200 lines, and include inline styles. Make it interactive with buttons, \
+    sliders, or inputs. Do not skip the interactive demo.\
+    """,
+    "lecture" => """
+    IMPORTANT: This is a lecture scene. You SHOULD structure your explanation as a slide \
+    presentation wrapped in a ~~~slides fenced block. Output a JSON array of slide objects, \
+    each with "title" (string) and "body" (string, markdown with KaTeX formulas and code blocks). \
+    Aim for 3-7 slides. Keep each slide focused on one idea. You may include conversational \
+    text before and/or after the ~~~slides block.\
+    """
+  }
+
+  defp inject_format_hint(messages, %{"type" => scene_type}) do
+    case Map.get(@format_hints, scene_type) do
+      nil -> messages
+      hint -> messages ++ [%{role: "system", content: hint}]
+    end
+  end
+
+  defp inject_format_hint(messages, _scene_spec), do: messages
 
   # Ensure there's at least one user message so the LLM has something to respond to.
   defp ensure_user_message(messages, _role_spec, _scene_spec) do

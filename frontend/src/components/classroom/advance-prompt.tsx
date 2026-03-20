@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, Show, type Component } from 'solid-js';
+import { type Component } from 'solid-js';
 import type { AdvancePrompt } from '../../lib/types';
 
 interface AdvancePromptCardProps {
@@ -9,35 +9,9 @@ interface AdvancePromptCardProps {
 }
 
 const AdvancePromptCard: Component<AdvancePromptCardProps> = (props) => {
-  const [elapsed, setElapsed] = createSignal(0);
-  const totalSeconds = () => props.prompt.timeout_seconds;
-  const percent = () => Math.min((elapsed() / totalSeconds()) * 100, 100);
-
-  createEffect(() => {
-    const interval = setInterval(() => {
-      // Freeze timer when paused
-      if (!props.paused) {
-        setElapsed((prev) => prev + 0.1);
-      }
-    }, 100);
-
-    onCleanup(() => clearInterval(interval));
-  });
-
-  // Auto-continue is handled by backend timeout, but we can track visually
-  createEffect(() => {
-    if (!props.paused && elapsed() >= totalSeconds()) {
-      // Backend will auto-advance — dismiss the UI
-      props.onDismiss();
-    }
-  });
-
   return (
     <>
       <div class="advance-prompt-card">
-        <div class="advance-prompt-timer">
-          <div class="advance-prompt-timer-fill" style={{ width: `${percent()}%` }} />
-        </div>
         <div class="advance-prompt-body">
           <div class="advance-prompt-text">
             <span class="advance-prompt-label">Up next</span>
@@ -76,17 +50,6 @@ const AdvancePromptCard: Component<AdvancePromptCardProps> = (props) => {
             opacity: 1;
             transform: translateY(0);
           }
-        }
-
-        .advance-prompt-timer {
-          height: 3px;
-          background: var(--border-color);
-        }
-
-        .advance-prompt-timer-fill {
-          height: 100%;
-          background: var(--accent-color);
-          transition: width 0.1s linear;
         }
 
         .advance-prompt-body {

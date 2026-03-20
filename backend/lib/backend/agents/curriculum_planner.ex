@@ -18,7 +18,8 @@ defmodule Backend.Agents.CurriculumPlanner do
   """
   @spec generate_plan(String.t(), any()) :: {:ok, map()} | {:error, term()}
   def generate_plan(goal, learner_profile, opts \\ []) do
-    input = build_input(goal, learner_profile)
+    source_summary = Keyword.get(opts, :source_summary)
+    input = build_input(goal, learner_profile, source_summary)
 
     llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
 
@@ -35,7 +36,7 @@ defmodule Backend.Agents.CurriculumPlanner do
     end
   end
 
-  defp build_input(goal, learner_profile) do
+  defp build_input(goal, learner_profile, source_summary) do
     profile =
       case learner_profile do
         nil ->
@@ -70,11 +71,19 @@ defmodule Backend.Agents.CurriculumPlanner do
         profile
       end
 
-    %{
+    input = %{
       goal: goal,
       topic: goal,
       learner_profile: profile
     }
+
+    # When source material is attached, include it so the curriculum
+    # is grounded in the actual document content
+    if source_summary do
+      Map.put(input, :source_material_summary, source_summary)
+    else
+      input
+    end
   end
 
   defp extract_time_constraint(goal) do

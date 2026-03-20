@@ -4,6 +4,8 @@ import Landing from './pages/landing';
 import CourseBrowser from './pages/course-browser';
 import ClassroomPage from './pages/classroom-page';
 import NotFound from './pages/not-found';
+import RichContentPlayground from './pages/rich-content-playground';
+import SessionHistory from './pages/session-history';
 
 export default function App() {
   return (
@@ -13,6 +15,8 @@ export default function App() {
         <Route path="/courses/:courseId" component={CourseBrowser} />
         <Route path="/courses/:courseId/:moduleId/:lessonId" component={CourseBrowser} />
         <Route path="/classroom/:sessionId" component={ClassroomPage} />
+        <Route path="/history" component={SessionHistory} />
+        <Route path="/playground" component={RichContentPlayground} />
         <Route path="*" component={NotFound} />
       </Router>
     </ThemeProvider>

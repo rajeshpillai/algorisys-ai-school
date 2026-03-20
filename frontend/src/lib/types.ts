@@ -89,7 +89,17 @@ export interface AdvancePrompt {
   next_topic: string;
   completed_lessons: number;
   total_lessons: number;
-  timeout_seconds: number;
+}
+
+export interface SessionSummary {
+  id: string;
+  goal: string;
+  state: string;
+  current_topic: string | null;
+  agent_count: number;
+  message_count: number;
+  created_at: string;
+  last_activity: string;
 }
 
 export interface LearnerProfile {

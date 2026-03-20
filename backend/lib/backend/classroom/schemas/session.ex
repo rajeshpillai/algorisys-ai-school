@@ -5,6 +5,7 @@ defmodule Backend.Classroom.Schemas.Session do
   @primary_key {:id, :string, autogenerate: false}
   schema "sessions" do
     field :goal, :string
+    field :learner_id, :string
     field :learner_profile, :string
     field :state, :string, default: "initializing"
     field :agents, {:array, :map}, default: []
@@ -17,6 +18,7 @@ defmodule Backend.Classroom.Schemas.Session do
     field :curriculum_plan, :map
     field :current_module_index, :integer, default: 0
     field :current_lesson_index, :integer, default: 0
+    field :source_material_id, :binary_id
 
     has_many :messages, Backend.Classroom.Schemas.Message
 
@@ -26,7 +28,7 @@ defmodule Backend.Classroom.Schemas.Session do
   def changeset(session, attrs) do
     session
     |> cast(attrs, [
-      :id, :goal, :learner_profile, :state, :agents, :learner_state,
+      :id, :goal, :learner_id, :learner_profile, :state, :agents, :learner_state, :source_material_id,
       :current_scene, :current_scene_spec, :current_topic,
       :current_agent, :orchestrator_decision,
       :curriculum_plan, :current_module_index, :current_lesson_index

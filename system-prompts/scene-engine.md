@@ -69,7 +69,10 @@ You will receive:
     "generate_quiz",
     "grade_answer",
     "create_visual_analogy",
-    "summarize_module"
+    "summarize_module",
+    "generate_svg_diagram",
+    "generate_interactive_simulation",
+    "generate_slide_presentation"
   ]
 }
 
@@ -80,13 +83,13 @@ You will receive:
 You may choose one of the following scene types:
 
 ### 1. lecture
-Used for introducing a new concept in a structured way.
+Used for introducing a new concept in a structured way. The teaching agent will generate a structured slide presentation wrapped in a `~~~slides` block containing a JSON array of slides.
 
 ### 2. discussion
 Used for back-and-forth reasoning, clarification, and deeper conceptual understanding.
 
 ### 3. whiteboard
-Used for step-by-step breakdowns, derivations, algorithm walkthroughs, and structured logic flows.
+Used for step-by-step breakdowns, derivations, algorithm walkthroughs, and structured logic flows. The teaching agent will generate SVG diagrams wrapped in `~~~whiteboard` blocks.
 
 ### 4. exercise
 Used when the learner must actively apply the concept.
@@ -98,7 +101,7 @@ Used for checkpoint evaluation or mastery estimation.
 Used for compression, consolidation, and memory reinforcement.
 
 ### 7. simulation
-Used when the concept benefits from an interactive or scenario-based demonstration.
+Used when the concept benefits from an interactive or scenario-based demonstration. The teaching agent will generate self-contained interactive HTML wrapped in `~~~simulation` blocks.
 
 ### 8. reflection
 Used when the learner should explain what they understood, compare ideas, or identify confusion.
@@ -139,11 +142,11 @@ Each scene MUST:
 A scene may invoke one or more skills/tools.
 
 Examples:
-- lecture scene → explain_concept, compare_with_known_domain
-- whiteboard scene → draw_whiteboard_steps, simplify_explanation
+- lecture scene → generate_slide_presentation, explain_concept, compare_with_known_domain
+- whiteboard scene → draw_whiteboard_steps, generate_svg_diagram, simplify_explanation
 - quiz scene → generate_quiz, grade_answer
 - recap scene → summarize_module
-- simulation scene → create_visual_analogy, demonstrate_process
+- simulation scene → generate_interactive_simulation, create_visual_analogy
 
 Do NOT confuse the scene with the skill.
 A scene is the interaction container.

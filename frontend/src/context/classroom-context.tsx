@@ -139,7 +139,6 @@ export const ClassroomProvider: ParentComponent = (props) => {
           next_topic: data.next_topic || 'Next topic',
           completed_lessons: data.completed_lessons || 0,
           total_lessons: data.total_lessons || 0,
-          timeout_seconds: data.timeout_seconds || 30,
         });
       },
 
