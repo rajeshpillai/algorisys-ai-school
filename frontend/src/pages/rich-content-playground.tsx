@@ -1,10 +1,9 @@
-import { For } from 'solid-js';
+import { createSignal, For, Suspense } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import TopBar from '../components/layout/top-bar';
 import { parseRichContent } from '../lib/rich-content-parser';
 import { renderMarkdown } from '../lib/markdown-renderer';
-import WhiteboardCanvas from '../components/classroom/whiteboard-canvas';
-import SimulationFrame from '../components/classroom/simulation-frame';
-import SlideViewer from '../components/classroom/slide-viewer';
+import { getBlockDefinition, getLoadingMessage } from '../lib/rich-block-registry';
 
 const SAMPLE_CONTENT = `Let me explain **binary search** with a presentation, a diagram, and an interactive demo.
 
@@ -48,7 +47,7 @@ Here's a visual diagram of the process:
   <text x="335" y="85" text-anchor="middle" font-size="14" fill="#334155">11</text>
   <rect x="370" y="60" width="50" height="40" rx="4" fill="#3b82f6" opacity="0.15" stroke="#3b82f6"/>
   <text x="395" y="85" text-anchor="middle" font-size="14" fill="#334155">13</text>
-  <text x="215" y="40" text-anchor="middle" font-size="12" fill="#10b981" font-weight="bold">mid ✓</text>
+  <text x="215" y="40" text-anchor="middle" font-size="12" fill="#10b981" font-weight="bold">mid</text>
   <line x1="215" y1="45" x2="215" y2="58" stroke="#10b981" stroke-width="2"/>
   <text x="300" y="140" text-anchor="middle" font-size="13" fill="#64748b">Sorted array — target: 7 — found at mid!</text>
 </svg>
@@ -136,12 +135,42 @@ Now try this interactive binary search:
   </script>
 </body>
 </html>
-~~~
-
-Any questions about binary search?`;
+~~~`;
 
 export default function RichContentPlayground() {
-  const segments = () => parseRichContent(SAMPLE_CONTENT);
+  const [customContent, setCustomContent] = createSignal('');
+  const [activeTab, setActiveTab] = createSignal<'sample' | 'custom'>('sample');
+
+  const currentContent = () => activeTab() === 'sample' ? SAMPLE_CONTENT : customContent();
+  const segments = () => parseRichContent(currentContent());
+
+  const renderSegment = (segment: { type: string; content?: string; blockType?: string }) => {
+    if (segment.type === 'markdown') {
+      return <div class="playground-markdown" innerHTML={renderMarkdown(segment.content!)} />;
+    }
+    if (segment.type === 'loading') {
+      return (
+        <div class="playground-loading">
+          <div class="playground-loading-spinner" />
+          <span>{getLoadingMessage(segment.blockType!)}</span>
+        </div>
+      );
+    }
+    const def = getBlockDefinition(segment.type);
+    if (def) {
+      return (
+        <Suspense fallback={
+          <div class="playground-loading">
+            <div class="playground-loading-spinner" />
+            <span>{def.loadingMessage}</span>
+          </div>
+        }>
+          <Dynamic component={def.component} content={segment.content!} />
+        </Suspense>
+      );
+    }
+    return <div class="playground-markdown" innerHTML={renderMarkdown(segment.content || '')} />;
+  };
 
   return (
     <>
@@ -149,25 +178,47 @@ export default function RichContentPlayground() {
       <div class="playground-container">
         <div class="playground-header">
           <h1 class="playground-title">Rich Content Playground</h1>
-          <p class="playground-subtitle">Preview of slides, whiteboard, and simulation components</p>
+          <p class="playground-subtitle">Test slides, whiteboard, and simulation rendering</p>
         </div>
+
+        <div class="playground-tabs">
+          <button
+            class="playground-tab"
+            classList={{ 'playground-tab--active': activeTab() === 'sample' }}
+            onClick={() => setActiveTab('sample')}
+          >
+            Sample Content
+          </button>
+          <button
+            class="playground-tab"
+            classList={{ 'playground-tab--active': activeTab() === 'custom' }}
+            onClick={() => setActiveTab('custom')}
+          >
+            Custom Input
+          </button>
+        </div>
+
+        {activeTab() === 'custom' && (
+          <div class="playground-editor">
+            <textarea
+              class="playground-textarea"
+              placeholder={`Type or paste content with ~~~whiteboard, ~~~simulation, or ~~~slides blocks...\n\nExample:\nHere is a diagram:\n\n~~~whiteboard\n<svg viewBox="0 0 200 100"><rect width="100" height="50" fill="#3b82f6" rx="8"/><text x="50" y="30" text-anchor="middle" fill="white">Hello</text></svg>\n~~~`}
+              value={customContent()}
+              onInput={(e) => setCustomContent(e.currentTarget.value)}
+              rows={12}
+            />
+          </div>
+        )}
+
+        <div class="playground-preview-label">Preview</div>
         <div class="playground-message">
-          <For each={segments()}>
-            {(segment) => {
-              switch (segment.type) {
-                case 'whiteboard':
-                  return <WhiteboardCanvas svg={segment.content} />;
-                case 'simulation':
-                  return <SimulationFrame html={segment.content} />;
-                case 'slides':
-                  return <SlideViewer content={segment.content} />;
-                case 'markdown':
-                  return <div class="playground-markdown" innerHTML={renderMarkdown(segment.content)} />;
-                default:
-                  return null;
-              }
-            }}
-          </For>
+          {segments().length > 0 ? (
+            <For each={segments()}>
+              {(segment) => renderSegment(segment as any)}
+            </For>
+          ) : (
+            <div class="playground-empty">Enter content above to see the preview</div>
+          )}
         </div>
       </div>
 
@@ -179,7 +230,7 @@ export default function RichContentPlayground() {
         }
 
         .playground-header {
-          margin-bottom: 2rem;
+          margin-bottom: 1.5rem;
         }
 
         .playground-title {
@@ -193,6 +244,71 @@ export default function RichContentPlayground() {
           font-size: 0.85rem;
           color: var(--text-muted);
           margin: 0;
+        }
+
+        .playground-tabs {
+          display: flex;
+          gap: 0;
+          margin-bottom: 1rem;
+          border-bottom: 1px solid var(--border-color);
+        }
+
+        .playground-tab {
+          padding: 0.5rem 1rem;
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: var(--text-muted);
+          background: none;
+          border: none;
+          border-bottom: 2px solid transparent;
+          cursor: pointer;
+          transition: color 0.15s, border-color 0.15s;
+        }
+
+        .playground-tab:hover {
+          color: var(--text-primary);
+        }
+
+        .playground-tab--active {
+          color: var(--accent-color);
+          border-bottom-color: var(--accent-color);
+        }
+
+        .playground-editor {
+          margin-bottom: 1rem;
+        }
+
+        .playground-textarea {
+          width: 100%;
+          font-family: monospace;
+          font-size: 0.8rem;
+          line-height: 1.5;
+          padding: 0.75rem;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          resize: vertical;
+          box-sizing: border-box;
+        }
+
+        .playground-textarea::placeholder {
+          color: var(--text-muted);
+          opacity: 0.6;
+        }
+
+        .playground-textarea:focus {
+          outline: none;
+          border-color: var(--accent-color);
+        }
+
+        .playground-preview-label {
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-muted);
+          margin-bottom: 0.5rem;
         }
 
         .playground-message {
@@ -214,6 +330,39 @@ export default function RichContentPlayground() {
 
         .playground-markdown strong {
           color: var(--text-primary);
+        }
+
+        .playground-empty {
+          font-size: 0.85rem;
+          color: var(--text-muted);
+          text-align: center;
+          padding: 2rem;
+        }
+
+        .playground-loading {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          margin: 0.75rem 0;
+          padding: 1rem 1.25rem;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-secondary);
+          color: var(--text-muted);
+          font-size: 0.85rem;
+        }
+
+        .playground-loading-spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid var(--border-color);
+          border-top-color: var(--accent-color);
+          border-radius: 50%;
+          animation: playground-spin 0.8s linear infinite;
+        }
+
+        @keyframes playground-spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>
