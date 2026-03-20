@@ -185,6 +185,29 @@ defmodule Backend.LLM.PromptBuilder do
     build_teaching_messages(tp, rs, ss, ch, ls)
   end
 
+  @doc """
+  Build messages for a roundtable agent turn.
+  Injects the roundtable transcript as prior assistant messages tagged with agent names,
+  then prompts the current agent to contribute.
+  """
+  def build_roundtable_messages(teaching_prompt, role_spec, scene_spec, roundtable_transcript, learner_state, source_content \\ "") do
+    # Build base system prompt (no conversation history — transcript replaces it)
+    messages = build_teaching_messages(teaching_prompt, role_spec, scene_spec, [], learner_state, source_content)
+
+    # Convert prior agent turns into conversation history
+    transcript_messages =
+      Enum.map(roundtable_transcript, fn %{agent_name: name, content: text} ->
+        %{role: "assistant", content: "[#{name}]: #{text}"}
+      end)
+
+    prompt_msg = %{
+      role: "user",
+      content: "It's your turn in the roundtable discussion. Respond to what has been said and share your perspective."
+    }
+
+    messages ++ transcript_messages ++ [prompt_msg]
+  end
+
   # --- Private helpers ---
 
   defp prompt_path(prompt_name) do

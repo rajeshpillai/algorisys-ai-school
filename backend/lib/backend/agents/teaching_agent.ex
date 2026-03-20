@@ -84,6 +84,12 @@ defmodule Backend.Agents.TeachingAgent do
     each with "title" (string) and "body" (string, markdown with KaTeX formulas and code blocks). \
     Aim for 3-7 slides. Keep each slide focused on one idea. You may include conversational \
     text before and/or after the ~~~slides block.\
+    """,
+    "roundtable" => """
+    IMPORTANT: This is a roundtable panel discussion. Other agents' contributions are in the \
+    conversation history. Reference them BY NAME — agree, disagree, or build on their points. \
+    Bring YOUR unique perspective. Keep it concise (2-4 paragraphs). Do NOT use slides, \
+    whiteboard, or simulation blocks. Speak naturally as in a panel discussion.\
     """
   }
 

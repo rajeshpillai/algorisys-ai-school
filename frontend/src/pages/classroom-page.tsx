@@ -53,6 +53,15 @@ function ClassroomContent() {
         </div>
         <div class="classroom-layout">
           <div class="classroom-main">
+            <Show when={classroom.roundtableActive()}>
+              <div class="roundtable-banner">
+                <span class="roundtable-banner-label">Panel Discussion</span>
+                <span class="roundtable-banner-topic">{classroom.roundtableTopic()}</span>
+                <span class="roundtable-banner-participants">
+                  {classroom.roundtableParticipants().join(' · ')}
+                </span>
+              </div>
+            </Show>
             <ChatStream
               messages={classroom.messages()}
               streamingAgent={classroom.streamingAgent()}
@@ -107,6 +116,36 @@ function ClassroomContent() {
           font-size: 0.8rem;
           color: var(--text-muted);
           font-family: monospace;
+        }
+
+        .roundtable-banner {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.5rem 1rem;
+          background: var(--accent-color);
+          color: white;
+          font-size: 0.8rem;
+        }
+
+        .roundtable-banner-label {
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 0.65rem;
+          letter-spacing: 0.05em;
+          padding: 0.15rem 0.4rem;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 3px;
+        }
+
+        .roundtable-banner-topic {
+          font-weight: 500;
+          flex: 1;
+        }
+
+        .roundtable-banner-participants {
+          font-size: 0.7rem;
+          opacity: 0.8;
         }
 
         .classroom-layout {

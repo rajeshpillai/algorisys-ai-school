@@ -11,6 +11,7 @@ defmodule Backend.Classroom.Session do
 
   alias Backend.Agents.{CurriculumPlanner, RoleSynthesis, Orchestrator, SceneEngine, TeachingAgent}
   alias Backend.Classroom.{LearnerState, Store}
+  alias Backend.LLM.{PromptBuilder, Streaming}
 
   defstruct [
     :id,
@@ -202,7 +203,7 @@ defmodule Backend.Classroom.Session do
 
     Store.save_state(new_state)
     broadcast_progress(new_state)
-    spawn_teaching(new_state, selected_agent, scene_spec)
+    dispatch_scene(new_state, scene_spec, selected_agent)
 
     {:noreply, new_state}
   end
@@ -222,7 +223,7 @@ defmodule Backend.Classroom.Session do
     }
 
     Store.save_state(new_state)
-    spawn_teaching(new_state, selected_agent, scene_spec)
+    dispatch_scene(new_state, scene_spec, selected_agent)
 
     {:noreply, new_state}
   end
@@ -242,6 +243,27 @@ defmodule Backend.Classroom.Session do
     broadcast_progress(new_state)
 
     # Check if more lessons — transition to awaiting_advance if so
+    new_state =
+      case maybe_auto_advance(new_state) do
+        {:ok, :awaiting_advance} -> %{new_state | state: :awaiting_advance}
+        _ -> new_state
+      end
+
+    {:noreply, new_state}
+  end
+
+  def handle_info({:roundtable_done, transcript}, state) do
+    # Store all roundtable messages and transition to waiting
+    new_messages =
+      Enum.reduce(transcript, state.messages, fn %{agent_name: name, agent_role: role, content: text}, msgs ->
+        Store.append_message(state.id, "assistant", text, name, role)
+        msgs ++ [%{role: "assistant", content: "[#{name}]: #{text}"}]
+      end)
+
+    new_state = advance_curriculum(%{state | messages: new_messages, state: :waiting})
+    Store.save_state(new_state)
+    broadcast_progress(new_state)
+
     new_state =
       case maybe_auto_advance(new_state) do
         {:ok, :awaiting_advance} -> %{new_state | state: :awaiting_advance}
@@ -467,6 +489,128 @@ defmodule Backend.Classroom.Session do
       send(gen_server_pid, {:next_turn_ready, decision, scene_spec, selected_agent})
     end)
   end
+
+  defp dispatch_scene(state, scene_spec, selected_agent) do
+    scene = scene_spec["scene"] || %{}
+    scene_type = scene["type"] || state.current_scene || "lecture"
+
+    if scene_type == "roundtable" do
+      turn_order = scene["turn_order"] || scene["participating_agents"] || []
+      agents_in_order = Enum.map(turn_order, fn name -> find_agent(state.agents, name) end)
+      agents_in_order = Enum.filter(agents_in_order, & &1)
+
+      if length(agents_in_order) >= 2 do
+        max_rounds = scene["max_rounds"] || 1
+        spawn_roundtable(state, scene_spec, agents_in_order, max_rounds)
+      else
+        # Fallback to normal teaching if not enough agents for roundtable
+        spawn_teaching(state, selected_agent, scene_spec)
+      end
+    else
+      spawn_teaching(state, selected_agent, scene_spec)
+    end
+  end
+
+  defp spawn_roundtable(state, scene_spec, agents_in_order, max_rounds) do
+    session_id = state.id
+    gen_server_pid = self()
+    learner_state = state.learner_state
+    llm_config = state.llm_config
+    llm_opts = if llm_config, do: [llm_config: llm_config], else: []
+
+    source_content =
+      if state.source_material do
+        topic = state.current_topic || state.goal
+        Backend.Content.SourceMaterial.extract_relevant_excerpt(state.source_material, topic)
+      else
+        ""
+      end
+
+    agent_names = Enum.map(agents_in_order, & &1["name"])
+    discussion_prompt = get_in(scene_spec, ["scene", "discussion_prompt"]) ||
+                        get_in(scene_spec, ["scene", "objective"]) ||
+                        state.current_topic || state.goal
+
+    # Broadcast roundtable start
+    broadcast(session_id, "roundtable_start", %{
+      topic: discussion_prompt,
+      participants: agent_names
+    })
+
+    Task.start(fn ->
+      transcript = run_roundtable_turns(
+        session_id, agents_in_order, scene_spec, learner_state,
+        llm_opts, source_content, max_rounds
+      )
+
+      broadcast(session_id, "roundtable_done", %{})
+      send(gen_server_pid, {:roundtable_done, transcript})
+    end)
+  end
+
+  defp run_roundtable_turns(session_id, agents, scene_spec, learner_state, llm_opts, source_content, max_rounds) do
+    Enum.reduce(1..max_rounds, [], fn _round, transcript ->
+      Enum.reduce(agents, transcript, fn agent, acc ->
+        case teach_roundtable_turn(session_id, agent, scene_spec, acc, learner_state, llm_opts, source_content) do
+          {:ok, text} ->
+            acc ++ [%{agent_name: agent["name"], agent_role: agent["type"] || "teaching", content: text}]
+
+          {:error, reason} ->
+            Logger.error("Roundtable turn failed for #{agent["name"]}: #{inspect(reason)}")
+            acc
+        end
+      end)
+    end)
+  end
+
+  defp teach_roundtable_turn(session_id, agent, scene_spec, transcript, learner_state, llm_opts, source_content) do
+    agent_name = agent["name"] || "Agent"
+    agent_role = agent["type"] || "teaching"
+    ref = make_ref()
+    parent = self()
+
+    callback = fn
+      {:chunk, text} ->
+        broadcast(session_id, "agent_chunk", %{
+          agent_name: agent_name,
+          agent_role: agent_role,
+          content: text
+        })
+
+      {:done, full_text} ->
+        broadcast(session_id, "agent_done", %{
+          agent_name: agent_name,
+          agent_role: agent_role
+        })
+        send(parent, {ref, :done, full_text})
+
+      {:error, reason} ->
+        send(parent, {ref, :error, reason})
+    end
+
+    case PromptBuilder.load_prompt("teaching-agent") do
+      {:ok, base_prompt} ->
+        messages = PromptBuilder.build_roundtable_messages(
+          base_prompt, agent, extract_scene(scene_spec), transcript, LearnerState.to_map(learner_state), source_content
+        )
+
+        teach_opts = [model: "gpt-4o"] ++ Keyword.take(llm_opts, [:llm_config])
+        Streaming.stream_chat(messages, callback, teach_opts)
+
+        receive do
+          {^ref, :done, text} -> {:ok, text}
+          {^ref, :error, reason} -> {:error, reason}
+        after
+          120_000 -> {:error, :timeout}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp extract_scene(%{"scene" => scene}), do: scene
+  defp extract_scene(scene), do: scene
 
   defp spawn_teaching(state, selected_agent, scene_spec) do
     session_id = state.id

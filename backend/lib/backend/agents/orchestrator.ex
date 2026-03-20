@@ -19,7 +19,8 @@ defmodule Backend.Agents.Orchestrator do
     "quiz",
     "recap",
     "simulation",
-    "reflection"
+    "reflection",
+    "roundtable"
   ]
 
   @doc """

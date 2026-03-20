@@ -22,6 +22,8 @@ export function joinClassroom(
     onAdvancePrompt?: (data: any) => void;
     onQuizResult?: (data: any) => void;
     onInitError?: (data: any) => void;
+    onRoundtableStart?: (data: any) => void;
+    onRoundtableDone?: () => void;
   }
 ): Channel {
   const s = getSocket();
@@ -41,6 +43,12 @@ export function joinClassroom(
   }
   if (callbacks.onInitError) {
     channel.on('init_error', callbacks.onInitError);
+  }
+  if (callbacks.onRoundtableStart) {
+    channel.on('roundtable_start', callbacks.onRoundtableStart);
+  }
+  if (callbacks.onRoundtableDone) {
+    channel.on('roundtable_done', callbacks.onRoundtableDone);
   }
 
   channel.join()

@@ -19,6 +19,9 @@ interface ClassroomContextValue {
   quizResult: () => QuizGradeResult | null;
   initError: () => string | null;
   isProcessing: () => boolean;
+  roundtableActive: () => boolean;
+  roundtableTopic: () => string | null;
+  roundtableParticipants: () => string[];
   connect: (sessionId: string) => void;
   send: (content: string) => void;
   confirmAdvance: () => void;
@@ -44,6 +47,9 @@ export const ClassroomProvider: ParentComponent = (props) => {
   const [quizResult, setQuizResult] = createSignal<QuizGradeResult | null>(null);
   const [initError, setInitError] = createSignal<string | null>(null);
   const [isProcessing, setIsProcessing] = createSignal(false);
+  const [roundtableActive, setRoundtableActive] = createSignal(false);
+  const [roundtableTopic, setRoundtableTopic] = createSignal<string | null>(null);
+  const [roundtableParticipants, setRoundtableParticipants] = createSignal<string[]>([]);
 
   let channel: Channel | null = null;
   let streamingRole = '';
@@ -146,6 +152,18 @@ export const ClassroomProvider: ParentComponent = (props) => {
         setIsProcessing(false);
         setInitError(data.reason || 'Session initialization failed.');
       },
+
+      onRoundtableStart: (data: any) => {
+        setRoundtableActive(true);
+        setRoundtableTopic(data.topic || null);
+        setRoundtableParticipants(data.participants || []);
+      },
+
+      onRoundtableDone: () => {
+        setRoundtableActive(false);
+        setRoundtableTopic(null);
+        setRoundtableParticipants([]);
+      },
     });
 
     setIsConnected(true);
@@ -244,6 +262,9 @@ export const ClassroomProvider: ParentComponent = (props) => {
         quizResult,
         initError,
         isProcessing,
+        roundtableActive,
+        roundtableTopic,
+        roundtableParticipants,
         connect,
         send,
         confirmAdvance,
