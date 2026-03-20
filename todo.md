@@ -202,7 +202,7 @@ Reference products and their approaches — for future feature planning:
 - Adding any new type: update regex in rich-content-parser.ts → new component → new Match in chat-message.tsx → update teaching-agent prompt
 
 ### Content Input Methods
-- [ ] PDF upload and parsing — extract text + images, use as lesson source
+- [x] PDF upload and parsing — pdftotext extraction, source-grounded teaching, keyword excerpt injection per turn
 - [ ] Web search augmentation — enrich generated content with live web results
 
 ### Export
@@ -217,9 +217,10 @@ Reference products and their approaches — for future feature planning:
 - [ ] User can interrupt agent mid-response
 
 ### Discussion Modes
-- [ ] Multi-agent roundtable discussions (multiple agents debate a topic)
+- [x] Multi-agent roundtable discussions — "roundtable" scene type, 2-4 agents take sequential turns, transcript-aware
+- [x] Roundtable UI — panel discussion banner with topic and participants
 - [ ] Discussion initiator pattern (trigger agent speaks first, others respond)
-- [ ] Roundtable UI — bubble view showing who's speaking
+- [ ] Learner interjection mid-roundtable (pause between turns, let user respond)
 
 ### User Profile & Personalization
 - [ ] User profile (avatar, nickname, bio/background)
@@ -236,7 +237,7 @@ Reference products and their approaches — for future feature planning:
 - [ ] Language-aware prompt generation (LLM calls include language parameter)
 
 ### Session Management
-- [ ] Session list / history page — resume previous sessions
+- [x] Session list / history page — anonymous learner tracking via localStorage UUID, resume from DB
 - [ ] Share generated classroom via URL
 - [ ] Draft caching — unsent messages persist across page reloads
 
