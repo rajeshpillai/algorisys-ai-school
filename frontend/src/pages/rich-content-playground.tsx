@@ -1,6 +1,7 @@
 import { createSignal, For, Suspense } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import TopBar from '../components/layout/top-bar';
+import AgentAvatar from '../components/classroom/agent-avatar';
 import { parseRichContent } from '../lib/rich-content-parser';
 import { renderMarkdown } from '../lib/markdown-renderer';
 import { getBlockDefinition, getLoadingMessage } from '../lib/rich-block-registry';
@@ -220,6 +221,37 @@ export default function RichContentPlayground() {
             <div class="playground-empty">Enter content above to see the preview</div>
           )}
         </div>
+
+        <div class="playground-section-divider" />
+
+        <div class="playground-header">
+          <h2 class="playground-title">Roundtable Discussion Preview</h2>
+          <p class="playground-subtitle">Multi-agent panel discussion where agents debate a topic</p>
+        </div>
+
+        <div class="roundtable-demo-banner">
+          <span class="roundtable-demo-banner-label">Panel Discussion</span>
+          <span class="roundtable-demo-banner-topic">Is recursion or iteration better for solving tree problems?</span>
+          <span class="roundtable-demo-banner-participants">Concept Teacher · Examples Provider · Misconception Detector</span>
+        </div>
+
+        <div class="playground-message">
+          <For each={[
+            { name: 'Concept Teacher', color: '#3b82f6', content: 'Recursion is the natural fit for tree problems because trees are inherently recursive data structures — every subtree is itself a tree. When you write a recursive traversal, the code mirrors the structure of the data. A function that processes a node and then calls itself on the left and right children is expressing the same self-similar pattern that defines the tree.\n\nThat said, recursion comes with a cost: each call adds a frame to the call stack, and for very deep trees this can cause stack overflow.' },
+            { name: 'Examples Provider', color: '#10b981', content: 'Building on what **Concept Teacher** said, let me make this concrete. Consider computing the height of a binary tree:\n\n**Recursive**: `height(node) = 1 + max(height(left), height(right))` — three lines, reads like the definition itself.\n\n**Iterative**: You need an explicit stack or queue, a level counter, and a loop — easily 15+ lines for the same result.\n\nHowever, for breadth-first traversal (level-order), iteration with a queue is actually *more* natural than recursion. So the answer depends on the traversal pattern.' },
+            { name: 'Misconception Detector', color: '#f59e0b', content: 'I want to push back on one thing both of you implied — that recursion is always "cleaner." A common misconception is equating *shorter code* with *better code*. In production systems, iterative solutions are often preferred because:\n\n1. They have predictable memory usage (no stack overflow risk)\n2. They are easier to debug (you can inspect the explicit stack)\n3. Tail-call optimization isn\'t guaranteed in most languages\n\n**Concept Teacher** is right that trees are recursive structures, but **Examples Provider**\'s point about BFS actually reveals the deeper truth: match the algorithm to the problem, not to a dogma.' },
+          ]}>
+            {(msg) => (
+              <div class="roundtable-demo-message">
+                <AgentAvatar name={msg.name} color={msg.color} />
+                <div class="roundtable-demo-message-body">
+                  <div class="roundtable-demo-message-name" style={{ color: msg.color }}>{msg.name}</div>
+                  <div class="roundtable-demo-message-content" innerHTML={renderMarkdown(msg.content)} />
+                </div>
+              </div>
+            )}
+          </For>
+        </div>
       </div>
 
       <style>{`
@@ -363,6 +395,90 @@ export default function RichContentPlayground() {
 
         @keyframes playground-spin {
           to { transform: rotate(360deg); }
+        }
+
+        .playground-section-divider {
+          border-top: 1px solid var(--border-color);
+          margin: 2.5rem 0 2rem;
+        }
+
+        .roundtable-demo-banner {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.5rem 1rem;
+          background: var(--accent-color);
+          color: white;
+          font-size: 0.8rem;
+          border-radius: 8px 8px 0 0;
+          margin-bottom: 0;
+        }
+
+        .roundtable-demo-banner-label {
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 0.65rem;
+          letter-spacing: 0.05em;
+          padding: 0.15rem 0.4rem;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 3px;
+          flex-shrink: 0;
+        }
+
+        .roundtable-demo-banner-topic {
+          font-weight: 500;
+          flex: 1;
+        }
+
+        .roundtable-demo-banner-participants {
+          font-size: 0.7rem;
+          opacity: 0.8;
+          flex-shrink: 0;
+        }
+
+        .roundtable-demo-message {
+          display: flex;
+          gap: 0.75rem;
+          padding: 0.75rem 0;
+          border-bottom: 1px solid var(--border-color);
+        }
+
+        .roundtable-demo-message:last-child {
+          border-bottom: none;
+        }
+
+        .roundtable-demo-message-body {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .roundtable-demo-message-name {
+          font-weight: 600;
+          font-size: 0.85rem;
+          margin-bottom: 0.25rem;
+        }
+
+        .roundtable-demo-message-content {
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+          line-height: 1.6;
+        }
+
+        .roundtable-demo-message-content p {
+          margin: 0 0 0.5rem;
+        }
+
+        .roundtable-demo-message-content p:last-child {
+          margin-bottom: 0;
+        }
+
+        .roundtable-demo-message-content strong {
+          color: var(--text-primary);
+        }
+
+        .roundtable-demo-message-content ol {
+          margin: 0.5rem 0;
+          padding-left: 1.5rem;
         }
       `}</style>
     </>
