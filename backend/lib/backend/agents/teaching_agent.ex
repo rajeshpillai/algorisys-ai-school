@@ -61,37 +61,34 @@ defmodule Backend.Agents.TeachingAgent do
   defp extract_scene(%{"scene" => scene}), do: scene
   defp extract_scene(scene), do: scene
 
-  @whiteboard_hint """
-  IMPORTANT: This is a whiteboard scene. You MUST include at least one SVG diagram \
-  wrapped in a ~~~whiteboard fenced block. Use simple SVG elements (rect, circle, line, \
-  text, path) with viewBox="0 0 600 400". Do not skip the diagram.\
-  """
+  # Scene-type format hints — data-driven registry.
+  # To add a new rich content type: add an entry here and update the teaching-agent prompt.
+  @format_hints %{
+    "whiteboard" => """
+    IMPORTANT: This is a whiteboard scene. You MUST include at least one SVG diagram \
+    wrapped in a ~~~whiteboard fenced block. Use simple SVG elements (rect, circle, line, \
+    text, path) with viewBox="0 0 600 400". Do not skip the diagram.\
+    """,
+    "simulation" => """
+    IMPORTANT: This is a simulation scene. You MUST include a self-contained interactive \
+    HTML demo wrapped in a ~~~simulation fenced block. Use vanilla JavaScript only, \
+    keep it under 200 lines, and include inline styles. Make it interactive with buttons, \
+    sliders, or inputs. Do not skip the interactive demo.\
+    """,
+    "lecture" => """
+    IMPORTANT: This is a lecture scene. You SHOULD structure your explanation as a slide \
+    presentation wrapped in a ~~~slides fenced block. Output a JSON array of slide objects, \
+    each with "title" (string) and "body" (string, markdown with KaTeX formulas and code blocks). \
+    Aim for 3-7 slides. Keep each slide focused on one idea. You may include conversational \
+    text before and/or after the ~~~slides block.\
+    """
+  }
 
-  @simulation_hint """
-  IMPORTANT: This is a simulation scene. You MUST include a self-contained interactive \
-  HTML demo wrapped in a ~~~simulation fenced block. Use vanilla JavaScript only, \
-  keep it under 200 lines, and include inline styles. Make it interactive with buttons, \
-  sliders, or inputs. Do not skip the interactive demo.\
-  """
-
-  defp inject_format_hint(messages, %{"type" => "whiteboard"}) do
-    messages ++ [%{role: "system", content: @whiteboard_hint}]
-  end
-
-  defp inject_format_hint(messages, %{"type" => "simulation"}) do
-    messages ++ [%{role: "system", content: @simulation_hint}]
-  end
-
-  @slides_hint """
-  IMPORTANT: This is a lecture scene. You SHOULD structure your explanation as a slide \
-  presentation wrapped in a ~~~slides fenced block. Output a JSON array of slide objects, \
-  each with "title" (string) and "body" (string, markdown with KaTeX formulas and code blocks). \
-  Aim for 3-7 slides. Keep each slide focused on one idea. You may include conversational \
-  text before and/or after the ~~~slides block.\
-  """
-
-  defp inject_format_hint(messages, %{"type" => "lecture"}) do
-    messages ++ [%{role: "system", content: @slides_hint}]
+  defp inject_format_hint(messages, %{"type" => scene_type}) do
+    case Map.get(@format_hints, scene_type) do
+      nil -> messages
+      hint -> messages ++ [%{role: "system", content: hint}]
+    end
   end
 
   defp inject_format_hint(messages, _scene_spec), do: messages

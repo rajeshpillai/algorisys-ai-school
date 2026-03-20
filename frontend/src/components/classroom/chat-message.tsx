@@ -1,11 +1,10 @@
-import { Show, For, Switch, Match, type Component } from 'solid-js';
+import { Show, For, Suspense, type Component } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import type { AgentMessage } from '../../lib/types';
 import { renderMarkdown } from '../../lib/markdown-renderer';
 import { parseRichContent } from '../../lib/rich-content-parser';
+import { getBlockDefinition, getLoadingMessage } from '../../lib/rich-block-registry';
 import AgentAvatar from './agent-avatar';
-import WhiteboardCanvas from './whiteboard-canvas';
-import SimulationFrame from './simulation-frame';
-import SlideViewer from './slide-viewer';
 
 interface ChatMessageProps {
   message: AgentMessage;
@@ -20,6 +19,36 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
     props.message.content.replace(/\[SCENE_COMPLETE\]/g, '').trimEnd();
 
   const segments = () => parseRichContent(cleanContent());
+
+  const renderSegment = (segment: { type: string; content?: string; blockType?: string }) => {
+    if (segment.type === 'markdown') {
+      return <div class="chat-message-content" innerHTML={renderMarkdown(segment.content!)} />;
+    }
+    if (segment.type === 'loading') {
+      return (
+        <div class="rich-content-loading">
+          <div class="rich-content-loading-spinner" />
+          <span>{getLoadingMessage(segment.blockType!)}</span>
+        </div>
+      );
+    }
+    // Look up component from registry
+    const def = getBlockDefinition(segment.type);
+    if (def) {
+      return (
+        <Suspense fallback={
+          <div class="rich-content-loading">
+            <div class="rich-content-loading-spinner" />
+            <span>{def.loadingMessage}</span>
+          </div>
+        }>
+          <Dynamic component={def.component} content={segment.content!} />
+        </Suspense>
+      );
+    }
+    // Unknown block type — render as markdown fallback
+    return <div class="chat-message-content" innerHTML={renderMarkdown(segment.content || '')} />;
+  };
 
   return (
     <>
@@ -45,34 +74,7 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
             </Show>
           </div>
           <For each={segments()}>
-            {(segment) => (
-              <Switch>
-                <Match when={segment.type === 'whiteboard'}>
-                  <WhiteboardCanvas svg={segment.content} />
-                </Match>
-                <Match when={segment.type === 'simulation'}>
-                  <SimulationFrame html={segment.content} />
-                </Match>
-                <Match when={segment.type === 'slides'}>
-                  <SlideViewer content={segment.content} />
-                </Match>
-                <Match when={segment.type === 'loading'}>
-                  <div class="rich-content-loading">
-                    <div class="rich-content-loading-spinner" />
-                    <span>
-                      {(segment as any).blockType === 'whiteboard'
-                        ? 'Generating diagram...'
-                        : (segment as any).blockType === 'slides'
-                        ? 'Preparing presentation...'
-                        : 'Building interactive simulation...'}
-                    </span>
-                  </div>
-                </Match>
-                <Match when={segment.type === 'markdown'}>
-                  <div class="chat-message-content" innerHTML={renderMarkdown(segment.content)} />
-                </Match>
-              </Switch>
-            )}
+            {(segment) => renderSegment(segment as any)}
           </For>
         </div>
       </div>
