@@ -19,7 +19,8 @@ defmodule Backend.Agents.SceneEngine do
     "quiz",
     "recap",
     "simulation",
-    "reflection"
+    "reflection",
+    "roundtable"
   ]
 
   @available_skills [
@@ -33,7 +34,8 @@ defmodule Backend.Agents.SceneEngine do
     "summarize_module",
     "generate_svg_diagram",
     "generate_interactive_simulation",
-    "generate_slide_presentation"
+    "generate_slide_presentation",
+    "facilitate_roundtable"
   ]
 
   @doc """

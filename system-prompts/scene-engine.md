@@ -106,6 +106,9 @@ Used when the concept benefits from an interactive or scenario-based demonstrati
 ### 8. reflection
 Used when the learner should explain what they understood, compare ideas, or identify confusion.
 
+### 9. roundtable
+Used for multi-perspective discussion where 2-4 agents debate or discuss a topic from their unique expertise. Include `"turn_order"` (array of agent names), `"discussion_prompt"` (the question/topic), and `"max_rounds"` (1-2). The learner observes and responds afterward.
+
 ---
 
 ## YOUR TASK
@@ -147,6 +150,7 @@ Examples:
 - quiz scene → generate_quiz, grade_answer
 - recap scene → summarize_module
 - simulation scene → generate_interactive_simulation, create_visual_analogy
+- roundtable scene → facilitate_roundtable, explain_concept
 
 Do NOT confuse the scene with the skill.
 A scene is the interaction container.
