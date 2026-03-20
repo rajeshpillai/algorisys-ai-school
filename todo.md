@@ -100,11 +100,12 @@
   - [x] Backend: PromptBuilder (message builders, prompt loading) — 13 tests
   - [x] Backend: Orchestrator / SceneEngine / RoleSynthesis agents — 15 tests
   - [x] Backend: QuizGrader (single/multiple/short-answer grading) — 7 tests
-  - [ ] Frontend: Classroom context (connect, send, progress updates)
-  - [ ] Frontend: Chat stream rendering
+  - [x] Frontend: Classroom context (connect, send, progress updates) — 22 tests
+  - [x] Frontend: Chat stream rendering — 10 tests
   - [x] Integration: Landing → session → classroom end-to-end (Playwright e2e)
 - [x] Playwright e2e test suite — 51 tests across 9 files
-- Backend: 116 tests (86 fast + 30 LLM integration), 0 failures
+- Backend: 123 tests (93 fast + 30 LLM integration), 0 failures
+- Frontend: 32 Vitest tests (22 classroom context + 10 chat stream)
 - E2E: 51 Playwright tests covering health, landing, theme, settings, courses, classroom, navigation
 
 ## Integration & Verification
