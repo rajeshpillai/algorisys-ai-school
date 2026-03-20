@@ -233,26 +233,13 @@ defmodule Backend.Classroom.Session do
       completed_lessons: completed,
       total_lessons: total,
       current_module_index: state.current_module_index,
-      current_lesson_index: state.current_lesson_index,
-      timeout_seconds: 30
+      current_lesson_index: state.current_lesson_index
     })
 
-    # Auto-advance after 30s if user doesn't respond
-    Process.send_after(self(), :auto_advance_timeout, 30_000)
     {:noreply, state}
   end
 
   def handle_info(:prompt_advance, state) do
-    {:noreply, state}
-  end
-
-  def handle_info(:auto_advance_timeout, %{state: :awaiting_advance} = state) do
-    Logger.info("Auto-advance timeout — proceeding to next topic")
-    do_advance(state)
-  end
-
-  def handle_info(:auto_advance_timeout, state) do
-    # Already advanced or user responded — ignore
     {:noreply, state}
   end
 
