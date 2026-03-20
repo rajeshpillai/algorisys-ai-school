@@ -1,6 +1,6 @@
 import { Show, type Component } from 'solid-js';
 import type { AgentMessage } from '../../lib/types';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../lib/markdown-renderer';
 import AgentAvatar from './agent-avatar';
 
 interface ChatMessageProps {
@@ -15,13 +15,7 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
   const cleanContent = () =>
     props.message.content.replace(/\[SCENE_COMPLETE\]/g, '').trimEnd();
 
-  const renderedContent = () => {
-    try {
-      return marked.parse(cleanContent(), { async: false }) as string;
-    } catch {
-      return cleanContent();
-    }
-  };
+  const renderedContent = () => renderMarkdown(cleanContent());
 
   return (
     <>
@@ -160,6 +154,17 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
           margin: 0.5rem 0;
           padding: 0.25rem 0.75rem;
           color: var(--text-muted);
+        }
+
+        .chat-message-content .katex-display {
+          margin: 0.75rem 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding: 0.5rem 0;
+        }
+
+        .chat-message-content .katex {
+          font-size: 1.05em;
         }
       `}</style>
     </>

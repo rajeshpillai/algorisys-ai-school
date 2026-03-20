@@ -1,5 +1,5 @@
 import { createMemo, type Component } from 'solid-js';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../lib/markdown-renderer';
 
 interface MarkdownContentProps {
   content: string;
@@ -8,7 +8,7 @@ interface MarkdownContentProps {
 const MarkdownContent: Component<MarkdownContentProps> = (props) => {
   const html = createMemo(() => {
     if (!props.content) return '';
-    return marked.parse(props.content, { async: false }) as string;
+    return renderMarkdown(props.content);
   });
 
   return (

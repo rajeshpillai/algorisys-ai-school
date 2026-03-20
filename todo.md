@@ -136,7 +136,7 @@
   - [ ] Canvas-based rendering with undo/redo
   - [ ] Multi-slide whiteboard support (one per scene)
 - [ ] HTML simulation scenes — agent-generated interactive demos embedded via iframe
-- [ ] Formula rendering — KaTeX for math/science subjects
+- [x] Formula rendering — KaTeX for math/science subjects
 
 ### Quiz & Grading Enhancements
 - [x] Multiple question types: single-choice, multiple-choice, short-answer
