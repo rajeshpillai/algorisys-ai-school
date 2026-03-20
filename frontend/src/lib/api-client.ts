@@ -1,4 +1,5 @@
 import { API_BASE } from './constants';
+import { getLearnerId } from './learner-id';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -18,10 +19,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({
         goal,
+        learner_id: getLearnerId(),
         learner_profile: learnerProfile,
         ...(llmConfig ? { llm_config: llmConfig } : {}),
       }),
     }),
+  getSessions: () =>
+    request<{ sessions: any[] }>(`/sessions?learner_id=${getLearnerId()}`),
+  resumeSession: (sessionId: string) =>
+    request(`/classroom/${sessionId}/resume`, { method: 'POST' }),
   sendMessage: (sessionId: string, content: string) =>
     request(`/classroom/${sessionId}/message`, {
       method: 'POST',

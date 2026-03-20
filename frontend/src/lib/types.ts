@@ -91,6 +91,17 @@ export interface AdvancePrompt {
   total_lessons: number;
 }
 
+export interface SessionSummary {
+  id: string;
+  goal: string;
+  state: string;
+  current_topic: string | null;
+  agent_count: number;
+  message_count: number;
+  created_at: string;
+  last_activity: string;
+}
+
 export interface LearnerProfile {
   background: string;
   level: 'beginner' | 'intermediate' | 'advanced';
