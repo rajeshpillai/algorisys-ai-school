@@ -59,22 +59,22 @@ describe('parseRichContent', () => {
     expect(result[2]).toEqual({ type: 'whiteboard', content: svg2 });
   });
 
-  it('treats incomplete whiteboard block as markdown during streaming', () => {
+  it('shows loading placeholder for incomplete whiteboard block during streaming', () => {
     const input = 'Here is a diagram:\n\n~~~whiteboard\n<svg><rect';
     const result = parseRichContent(input);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe('markdown');
-    expect(result[0].content).toBe(input);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ type: 'markdown', content: 'Here is a diagram:\n\n' });
+    expect(result[1]).toEqual({ type: 'loading', blockType: 'whiteboard' });
   });
 
-  it('treats incomplete simulation block as markdown during streaming', () => {
+  it('shows loading placeholder for incomplete simulation block during streaming', () => {
     const input = 'Try this:\n\n~~~simulation\n<html><body>';
     const result = parseRichContent(input);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe('markdown');
-    expect(result[0].content).toBe(input);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ type: 'markdown', content: 'Try this:\n\n' });
+    expect(result[1]).toEqual({ type: 'loading', blockType: 'simulation' });
   });
 
   it('does not confuse regular code fences with rich blocks', () => {

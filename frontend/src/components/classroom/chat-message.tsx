@@ -52,6 +52,16 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
                 <Match when={segment.type === 'simulation'}>
                   <SimulationFrame html={segment.content} />
                 </Match>
+                <Match when={segment.type === 'loading'}>
+                  <div class="rich-content-loading">
+                    <div class="rich-content-loading-spinner" />
+                    <span>
+                      {(segment as any).blockType === 'whiteboard'
+                        ? 'Generating diagram...'
+                        : 'Building interactive simulation...'}
+                    </span>
+                  </div>
+                </Match>
                 <Match when={segment.type === 'markdown'}>
                   <div class="chat-message-content" innerHTML={renderMarkdown(segment.content)} />
                 </Match>
@@ -182,6 +192,32 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
 
         .chat-message-content .katex {
           font-size: 1.05em;
+        }
+
+        .rich-content-loading {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          margin: 0.75rem 0;
+          padding: 1rem 1.25rem;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-secondary);
+          color: var(--text-muted);
+          font-size: 0.85rem;
+        }
+
+        .rich-content-loading-spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid var(--border-color);
+          border-top-color: var(--accent-color);
+          border-radius: 50%;
+          animation: rich-loading-spin 0.8s linear infinite;
+        }
+
+        @keyframes rich-loading-spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>
