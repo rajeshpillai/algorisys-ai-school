@@ -33,6 +33,10 @@ defmodule Backend.Agents.QuizGrader do
       percent: percent,
       results: results
     }}
+  rescue
+    e ->
+      Logger.error("Quiz grading crashed: #{Exception.message(e)}")
+      {:error, Exception.message(e)}
   end
 
   defp find_answer(answers, question_id) do
