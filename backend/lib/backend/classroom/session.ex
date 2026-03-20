@@ -256,13 +256,13 @@ defmodule Backend.Classroom.Session do
     {:noreply, state}
   end
 
-  def handle_info({:teaching_error, _reason}, state) do
-    {:noreply, %{state | state: :waiting}}
+  def handle_info({:teaching_error, reason}, state) do
+    handle_session_error(reason, state)
   end
 
   def handle_info({:pipeline_error, reason}, state) do
     Logger.error("Pipeline error for session #{state.id}: #{inspect(reason)}")
-    {:noreply, %{state | state: :waiting}}
+    handle_session_error(reason, state)
   end
 
   def handle_info(msg, state) do
@@ -468,15 +468,6 @@ defmodule Backend.Classroom.Session do
 
         {:error, reason} ->
           Logger.error("Teaching agent streaming error: #{inspect(reason)}")
-
-          broadcast(session_id, "agent_message", %{
-            id: generate_id(),
-            agent_name: "System",
-            agent_role: "system",
-            content: "An error occurred during teaching. Please try sending a message.",
-            timestamp: System.system_time(:millisecond)
-          })
-
           send(gen_server_pid, {:teaching_error, reason})
       end
 
@@ -660,6 +651,47 @@ defmodule Backend.Classroom.Session do
 
   defp broadcast(session_id, event, payload) do
     BackendWeb.Endpoint.broadcast("classroom:#{session_id}", event, payload)
+  end
+
+  defp handle_session_error(reason, state) do
+    if state.messages == [] do
+      # Init error — no user messages yet, broadcast distinct event for frontend redirect
+      broadcast(state.id, "init_error", %{
+        reason: categorize_error(reason),
+        timestamp: System.system_time(:millisecond)
+      })
+    else
+      # Mid-session error — show inline error message
+      broadcast(state.id, "agent_message", %{
+        id: generate_id(),
+        agent_name: "System",
+        agent_role: "system",
+        content: "An error occurred during teaching. Please try sending a message.",
+        timestamp: System.system_time(:millisecond)
+      })
+    end
+
+    {:noreply, %{state | state: :waiting}}
+  end
+
+  defp categorize_error({:api_error, status, _body}) when status in [401, 403] do
+    "Authentication failed. Please check your API key."
+  end
+
+  defp categorize_error({:api_error, 429, _body}) do
+    "Rate limit exceeded. Please try again shortly."
+  end
+
+  defp categorize_error({:api_error, status, _body}) when status >= 500 do
+    "LLM provider returned an error (#{status}). Please try again."
+  end
+
+  defp categorize_error({:request_failed, _reason}) do
+    "Could not reach the LLM provider. Please check your connection."
+  end
+
+  defp categorize_error(_reason) do
+    "Failed to start session. Please try again."
   end
 
   defp generate_id do

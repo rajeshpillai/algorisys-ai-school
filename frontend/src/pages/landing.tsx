@@ -1,4 +1,4 @@
-import { createSignal, createResource, For, Show } from 'solid-js';
+import { createSignal, createResource, onMount, For, Show } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import TopBar from '../components/layout/top-bar';
 import { api } from '../lib/api-client';
@@ -15,7 +15,16 @@ const defaultIcon = { icon: '📚', color: '#6366f1' };
 
 export default function Landing() {
   const [goal, setGoal] = createSignal('');
+  const [initError, setInitError] = createSignal<string | null>(null);
   const navigate = useNavigate();
+
+  onMount(() => {
+    const err = sessionStorage.getItem('classroom_init_error');
+    if (err) {
+      setInitError(err);
+      sessionStorage.removeItem('classroom_init_error');
+    }
+  });
 
   const [data] = createResource(async () => {
     const res = await api.getSubjects() as any;
@@ -25,8 +34,13 @@ export default function Landing() {
   const handleStart = async () => {
     const text = goal().trim();
     if (!text) return;
-    const res = await api.startClassroom(text, undefined, getLlmPayload()) as any;
-    navigate(`/classroom/${res.session_id}`);
+    setInitError(null);
+    try {
+      const res = await api.startClassroom(text, undefined, getLlmPayload()) as any;
+      navigate(`/classroom/${res.session_id}`);
+    } catch (err) {
+      setInitError('Failed to start session. Please try again.');
+    }
   };
 
   return (
@@ -39,6 +53,13 @@ export default function Landing() {
           Learn any subject with a team of AI agents who teach, quiz, and
           guide you through interactive lessons.
         </p>
+
+        <Show when={initError()}>
+          <div class="init-error-banner">
+            <span>{initError()}</span>
+            <button class="init-error-dismiss" onClick={() => setInitError(null)}>&times;</button>
+          </div>
+        </Show>
 
         <div class="goal-input-group">
           <input
@@ -128,6 +149,42 @@ export default function Landing() {
           line-height: 1.7;
           margin-bottom: 2.5rem;
           max-width: 560px;
+        }
+
+        .init-error-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          width: 100%;
+          max-width: 560px;
+          padding: 0.75rem 1rem;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 10px;
+          color: #991b1b;
+          font-size: 0.95rem;
+          margin-bottom: 1rem;
+        }
+
+        .dark .init-error-banner {
+          background: #450a0a;
+          border-color: #7f1d1d;
+          color: #fca5a5;
+        }
+
+        .init-error-dismiss {
+          background: none;
+          border: none;
+          color: inherit;
+          font-size: 1.25rem;
+          cursor: pointer;
+          padding: 0 0.25rem;
+          opacity: 0.7;
+        }
+
+        .init-error-dismiss:hover {
+          opacity: 1;
         }
 
         .goal-input-group {

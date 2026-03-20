@@ -290,6 +290,145 @@ defmodule Backend.Classroom.SessionTest do
 
       assert get_raw_state(pid).state == :waiting
     end
+
+    test "teaching_error broadcasts init_error when no user messages (init phase)" do
+      id = unique_id()
+      pid = start_session(id, "Learn Kotlin")
+
+      # Subscribe to the channel to receive broadcasts
+      BackendWeb.Endpoint.subscribe("classroom:#{id}")
+
+      # Put in teaching state via pipeline_started (still no user messages)
+      send(pid, {:pipeline_started,
+        [%{"name" => "Kotlin Guide", "type" => "teaching"}],
+        %{"next_action" => %{"agent" => "Kotlin Guide", "scene" => "lecture"},
+          "state_updates" => %{"focus_topic" => "Coroutines"}},
+        %{"scene" => %{"type" => "lecture"}},
+        %{"name" => "Kotlin Guide", "type" => "teaching"},
+        nil
+      })
+      Process.sleep(50)
+
+      # Trigger teaching error — no user messages, so this is an init error
+      send(pid, {:teaching_error, {:api_error, 401, "Unauthorized"}})
+      Process.sleep(50)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        event: "init_error",
+        payload: %{reason: reason}
+      }
+      assert reason =~ "Authentication failed"
+    end
+
+    test "teaching_error broadcasts agent_message when user has sent messages (mid-session)" do
+      id = unique_id()
+      pid = start_session(id, "Learn Swift")
+
+      BackendWeb.Endpoint.subscribe("classroom:#{id}")
+
+      # Set up session with pipeline
+      send(pid, {:pipeline_started,
+        [%{"name" => "Swift Dev", "type" => "teaching"}],
+        %{"next_action" => %{"agent" => "Swift Dev", "scene" => "lecture"},
+          "state_updates" => %{"focus_topic" => "Optionals"}},
+        %{"scene" => %{"type" => "lecture"}},
+        %{"name" => "Swift Dev", "type" => "teaching"},
+        nil
+      })
+      Process.sleep(50)
+
+      # Complete first teaching so state becomes :waiting
+      send(pid, {:teaching_done, "Swift Dev", "teaching", "Optionals are..."})
+      Process.sleep(50)
+
+      # User sends a message (state.messages is now non-empty)
+      Session.send_message(id, "Tell me more about optionals")
+      Process.sleep(50)
+
+      # Trigger teaching error — user has sent a message, so mid-session error
+      send(pid, {:teaching_error, {:api_error, 500, "Server error"}})
+      Process.sleep(50)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        event: "agent_message",
+        payload: %{content: "An error occurred during teaching." <> _}
+      }
+    end
+
+    test "pipeline_error broadcasts init_error when no user messages" do
+      id = unique_id()
+      pid = start_session(id, "Learn Dart")
+
+      BackendWeb.Endpoint.subscribe("classroom:#{id}")
+
+      send(pid, {:pipeline_error, {:request_failed, :econnrefused}})
+      Process.sleep(50)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        event: "init_error",
+        payload: %{reason: reason}
+      }
+      assert reason =~ "Could not reach"
+    end
+  end
+
+  describe "categorize_error/1" do
+    # Access the private function via send/handle_info and observing broadcasts
+    test "401 errors produce auth message" do
+      id = unique_id()
+      pid = start_session(id, "Learn R")
+      BackendWeb.Endpoint.subscribe("classroom:#{id}")
+
+      send(pid, {:teaching_error, {:api_error, 401, "Unauthorized"}})
+      Process.sleep(50)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        event: "init_error",
+        payload: %{reason: "Authentication failed. Please check your API key."}
+      }
+    end
+
+    test "429 errors produce rate limit message" do
+      id = unique_id()
+      pid = start_session(id, "Learn Scala")
+      BackendWeb.Endpoint.subscribe("classroom:#{id}")
+
+      send(pid, {:teaching_error, {:api_error, 429, "Too many requests"}})
+      Process.sleep(50)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        event: "init_error",
+        payload: %{reason: "Rate limit exceeded. Please try again shortly."}
+      }
+    end
+
+    test "request_failed errors produce connection message" do
+      id = unique_id()
+      pid = start_session(id, "Learn Perl")
+      BackendWeb.Endpoint.subscribe("classroom:#{id}")
+
+      send(pid, {:teaching_error, {:request_failed, :timeout}})
+      Process.sleep(50)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        event: "init_error",
+        payload: %{reason: "Could not reach the LLM provider. Please check your connection."}
+      }
+    end
+
+    test "unknown errors produce generic message" do
+      id = unique_id()
+      pid = start_session(id, "Learn Lua")
+      BackendWeb.Endpoint.subscribe("classroom:#{id}")
+
+      send(pid, {:teaching_error, :something_unexpected})
+      Process.sleep(50)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        event: "init_error",
+        payload: %{reason: "Failed to start session. Please try again."}
+      }
+    end
   end
 
   describe "curriculum progression" do

@@ -1,5 +1,5 @@
-import { useParams } from '@solidjs/router';
-import { onMount, onCleanup, Show } from 'solid-js';
+import { useParams, useNavigate } from '@solidjs/router';
+import { onMount, onCleanup, createEffect, Show } from 'solid-js';
 import TopBar from '../components/layout/top-bar';
 import { ClassroomProvider, useClassroom } from '../context/classroom-context';
 import ChatStream from '../components/classroom/chat-stream';
@@ -12,6 +12,7 @@ import QuizCard from '../components/classroom/quiz-card';
 function ClassroomContent() {
   const params = useParams<{ sessionId: string }>();
   const classroom = useClassroom();
+  const navigate = useNavigate();
 
   onMount(() => {
     classroom.connect(params.sessionId);
@@ -19,6 +20,16 @@ function ClassroomContent() {
 
   onCleanup(() => {
     classroom.disconnect();
+  });
+
+  // Redirect to landing if init error occurs (before user's first message)
+  createEffect(() => {
+    const error = classroom.initError();
+    if (error) {
+      sessionStorage.setItem('classroom_init_error', error);
+      classroom.disconnect();
+      navigate('/', { replace: true });
+    }
   });
 
   return (

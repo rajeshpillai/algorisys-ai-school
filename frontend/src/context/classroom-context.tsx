@@ -17,6 +17,7 @@ interface ClassroomContextValue {
   isPaused: () => boolean;
   activeQuiz: () => QuizData | null;
   quizResult: () => QuizGradeResult | null;
+  initError: () => string | null;
   connect: (sessionId: string) => void;
   send: (content: string) => void;
   confirmAdvance: () => void;
@@ -40,6 +41,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
   const [isPaused, setIsPaused] = createSignal(false);
   const [activeQuiz, setActiveQuiz] = createSignal<QuizData | null>(null);
   const [quizResult, setQuizResult] = createSignal<QuizGradeResult | null>(null);
+  const [initError, setInitError] = createSignal<string | null>(null);
 
   let channel: Channel | null = null;
   let streamingRole = '';
@@ -57,6 +59,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
     setStreamingContent('');
     setProgress(null);
     setAdvancePrompt(null);
+    setInitError(null);
 
     channel = joinClassroom(id, {
       onAgentMessage: (msg: any) => {
@@ -135,6 +138,10 @@ export const ClassroomProvider: ParentComponent = (props) => {
           timeout_seconds: data.timeout_seconds || 30,
         });
       },
+
+      onInitError: (data: any) => {
+        setInitError(data.reason || 'Session initialization failed.');
+      },
     });
 
     setIsConnected(true);
@@ -145,6 +152,8 @@ export const ClassroomProvider: ParentComponent = (props) => {
 
     // Dismiss advance prompt if user sends a question instead
     setAdvancePrompt(null);
+    // Clear pause state — user is actively engaging
+    setIsPaused(false);
 
     const userMsg: AgentMessage = {
       id: crypto.randomUUID(),
@@ -226,6 +235,7 @@ export const ClassroomProvider: ParentComponent = (props) => {
         isPaused,
         activeQuiz,
         quizResult,
+        initError,
         connect,
         send,
         confirmAdvance,

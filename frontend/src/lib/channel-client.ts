@@ -21,6 +21,7 @@ export function joinClassroom(
     onCurriculumProgress?: (data: any) => void;
     onAdvancePrompt?: (data: any) => void;
     onQuizResult?: (data: any) => void;
+    onInitError?: (data: any) => void;
   }
 ): Channel {
   const s = getSocket();
@@ -37,6 +38,9 @@ export function joinClassroom(
   }
   if (callbacks.onQuizResult) {
     channel.on('quiz_result', callbacks.onQuizResult);
+  }
+  if (callbacks.onInitError) {
+    channel.on('init_error', callbacks.onInitError);
   }
 
   channel.join()
