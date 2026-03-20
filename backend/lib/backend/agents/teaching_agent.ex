@@ -43,6 +43,9 @@ defmodule Backend.Agents.TeachingAgent do
         # If there are no user messages in history, add a starter message
         messages = ensure_user_message(messages, role_spec, scene_spec)
 
+        # Inject scene-specific output format reminder
+        messages = inject_format_hint(messages, extract_scene(scene_spec))
+
         llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])
         Streaming.stream_chat(messages, callback, llm_opts)
 
@@ -57,6 +60,29 @@ defmodule Backend.Agents.TeachingAgent do
   # We want the inner "scene" map for the teaching prompt.
   defp extract_scene(%{"scene" => scene}), do: scene
   defp extract_scene(scene), do: scene
+
+  @whiteboard_hint """
+  IMPORTANT: This is a whiteboard scene. You MUST include at least one SVG diagram \
+  wrapped in a ~~~whiteboard fenced block. Use simple SVG elements (rect, circle, line, \
+  text, path) with viewBox="0 0 600 400". Do not skip the diagram.\
+  """
+
+  @simulation_hint """
+  IMPORTANT: This is a simulation scene. You MUST include a self-contained interactive \
+  HTML demo wrapped in a ~~~simulation fenced block. Use vanilla JavaScript only, \
+  keep it under 200 lines, and include inline styles. Make it interactive with buttons, \
+  sliders, or inputs. Do not skip the interactive demo.\
+  """
+
+  defp inject_format_hint(messages, %{"type" => "whiteboard"}) do
+    messages ++ [%{role: "system", content: @whiteboard_hint}]
+  end
+
+  defp inject_format_hint(messages, %{"type" => "simulation"}) do
+    messages ++ [%{role: "system", content: @simulation_hint}]
+  end
+
+  defp inject_format_hint(messages, _scene_spec), do: messages
 
   # Ensure there's at least one user message so the LLM has something to respond to.
   defp ensure_user_message(messages, _role_spec, _scene_spec) do
