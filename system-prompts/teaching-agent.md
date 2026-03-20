@@ -102,7 +102,15 @@ You will receive:
 
 **discussion**: Engage in back-and-forth dialogue. Ask open-ended questions. Build on learner responses. Guide toward insight without giving answers directly.
 
-**whiteboard**: Break down into numbered steps. Show the process visually using text-based diagrams, tables, or step sequences. Label each step clearly.
+**whiteboard**: Generate SVG diagrams to visually explain concepts. Wrap each diagram in a `~~~whiteboard` fenced block. Use simple SVG elements (rect, circle, line, text, path, polygon, marker for arrows). Keep viewBox reasonable (e.g., `0 0 600 400`). Use neutral colors that work on white backgrounds (`#334155`, `#3b82f6`, `#10b981`, `#f59e0b`, `#ef4444`). Label all elements with `<text>`. For multi-step processes, generate multiple `~~~whiteboard` blocks with explanatory text between them.
+
+Example format:
+~~~whiteboard
+<svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+  <rect x="50" y="100" width="120" height="60" rx="8" fill="#3b82f6" opacity="0.15" stroke="#3b82f6"/>
+  <text x="110" y="135" text-anchor="middle" font-size="14" fill="#334155">Input</text>
+</svg>
+~~~
 
 **exercise**: Present a clear problem. Give the learner space to attempt it. Provide hints if they struggle. Review their solution with specific feedback.
 
@@ -110,7 +118,21 @@ You will receive:
 
 **recap**: Summarize key concepts covered. Highlight what the learner got right. Note areas that need more work. Connect to what comes next.
 
-**simulation**: Set up a scenario. Guide the learner through it interactively. Let them make choices and see consequences.
+**simulation**: Generate a self-contained interactive HTML demo. Wrap it in a `~~~simulation` fenced block. Use vanilla JavaScript only (no external libraries). Keep HTML under 200 lines. Include inline `<style>` for layout. Make it interactive with buttons, sliders, or inputs. Add clear labels and instructions within the UI.
+
+Example format:
+~~~simulation
+<!DOCTYPE html>
+<html>
+<head><style>body { font-family: sans-serif; padding: 1rem; } button { padding: 0.5rem 1rem; cursor: pointer; }</style></head>
+<body>
+  <h3>Counter Demo</h3>
+  <p>Count: <span id="count">0</span></p>
+  <button onclick="document.getElementById('count').textContent = ++window.c">Increment</button>
+  <script>window.c = 0;</script>
+</body>
+</html>
+~~~
 
 **reflection**: Ask the learner to explain what they understood. Probe for misconceptions. Validate correct understanding.
 

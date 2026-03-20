@@ -30,7 +30,9 @@ defmodule Backend.Agents.SceneEngine do
     "generate_quiz",
     "grade_answer",
     "create_visual_analogy",
-    "summarize_module"
+    "summarize_module",
+    "generate_svg_diagram",
+    "generate_interactive_simulation"
   ]
 
   @doc """

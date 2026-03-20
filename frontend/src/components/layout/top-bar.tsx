@@ -10,7 +10,10 @@ export default function TopBar() {
   return (
     <>
       <header class="top-bar">
-        <A href="/" class="top-bar-brand">Algorisys Open AI School</A>
+        <div class="top-bar-brand-group">
+          <A href="/" class="top-bar-brand">Algorisys Open AI School</A>
+          <span class="top-bar-tagline">Learn anything from first principles</span>
+        </div>
         <div class="top-bar-actions">
           <button
             class="top-bar-settings-btn"
@@ -47,11 +50,25 @@ export default function TopBar() {
           z-index: 100;
         }
 
+        .top-bar-brand-group {
+          display: flex;
+          align-items: baseline;
+          gap: 0.75rem;
+        }
+
         .top-bar-brand {
           font-size: 1.2rem;
           font-weight: 700;
           color: var(--text-primary) !important;
           letter-spacing: -0.01em;
+        }
+
+        .top-bar-tagline {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          font-weight: 400;
+          letter-spacing: 0.02em;
+          opacity: 0.7;
         }
 
         .top-bar-actions {

@@ -1,7 +1,10 @@
-import { Show, type Component } from 'solid-js';
+import { Show, For, Switch, Match, type Component } from 'solid-js';
 import type { AgentMessage } from '../../lib/types';
 import { renderMarkdown } from '../../lib/markdown-renderer';
+import { parseRichContent } from '../../lib/rich-content-parser';
 import AgentAvatar from './agent-avatar';
+import WhiteboardCanvas from './whiteboard-canvas';
+import SimulationFrame from './simulation-frame';
 
 interface ChatMessageProps {
   message: AgentMessage;
@@ -15,7 +18,7 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
   const cleanContent = () =>
     props.message.content.replace(/\[SCENE_COMPLETE\]/g, '').trimEnd();
 
-  const renderedContent = () => renderMarkdown(cleanContent());
+  const segments = () => parseRichContent(cleanContent());
 
   return (
     <>
@@ -40,7 +43,21 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
               <span class="chat-message-streaming-badge">streaming</span>
             </Show>
           </div>
-          <div class="chat-message-content" innerHTML={renderedContent()} />
+          <For each={segments()}>
+            {(segment) => (
+              <Switch>
+                <Match when={segment.type === 'whiteboard'}>
+                  <WhiteboardCanvas svg={segment.content} />
+                </Match>
+                <Match when={segment.type === 'simulation'}>
+                  <SimulationFrame html={segment.content} />
+                </Match>
+                <Match when={segment.type === 'markdown'}>
+                  <div class="chat-message-content" innerHTML={renderMarkdown(segment.content)} />
+                </Match>
+              </Switch>
+            )}
+          </For>
         </div>
       </div>
 
