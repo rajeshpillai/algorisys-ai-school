@@ -165,6 +165,21 @@ defmodule Backend.Classroom.Session do
 
   @impl true
   def handle_info(:start_pipeline, state) do
+    # Reload from DB to pick up source_material_id set by the controller
+    state =
+      case Store.load_session(state.id) do
+        nil -> state
+        persisted ->
+          if persisted.source_material_id && is_nil(state.source_material) do
+            case Backend.Content.SourceMaterial.get(persisted.source_material_id) do
+              nil -> state
+              source -> %{state | source_material: source}
+            end
+          else
+            state
+          end
+      end
+
     spawn_pipeline(state)
     {:noreply, state}
   end
@@ -279,6 +294,21 @@ defmodule Backend.Classroom.Session do
     learner_state = state.learner_state
     llm_config = state.llm_config
     llm_opts = if llm_config, do: [llm_config: llm_config], else: []
+
+    # Get source material summary if attached
+    source_summary =
+      if state.source_material do
+        Backend.Content.SourceMaterial.get_summary(state.source_material)
+      else
+        nil
+      end
+
+    llm_opts =
+      if source_summary do
+        Keyword.put(llm_opts, :source_summary, source_summary)
+      else
+        llm_opts
+      end
 
     Task.start(fn ->
       broadcast(session_id, "agent_message", %{
