@@ -59,7 +59,7 @@ defmodule Backend.Agents.TeachingAgent do
   defp extract_scene(scene), do: scene
 
   # Ensure there's at least one user message so the LLM has something to respond to.
-  defp ensure_user_message(messages, role_spec, scene_spec) do
+  defp ensure_user_message(messages, _role_spec, _scene_spec) do
     has_user_msg? =
       Enum.any?(messages, fn msg ->
         to_string(msg[:role] || msg["role"]) == "user"
@@ -68,15 +68,7 @@ defmodule Backend.Agents.TeachingAgent do
     if has_user_msg? do
       messages
     else
-      scene = extract_scene(scene_spec)
-      scene_type = scene["type"] || "lecture"
-      agent_name = role_spec["name"] || "Teacher"
-
-      starter =
-        "Please begin the #{scene_type} scene. I'm ready to learn. " <>
-          "(You are #{agent_name}.)"
-
-      messages ++ [%{role: "user", content: starter}]
+      messages ++ [%{role: "user", content: "Go ahead, teach me about this topic."}]
     end
   end
 end
