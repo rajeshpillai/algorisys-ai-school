@@ -32,7 +32,8 @@ defmodule Backend.Agents.SceneEngine do
     "create_visual_analogy",
     "summarize_module",
     "generate_svg_diagram",
-    "generate_interactive_simulation"
+    "generate_interactive_simulation",
+    "generate_slide_presentation"
   ]
 
   @doc """

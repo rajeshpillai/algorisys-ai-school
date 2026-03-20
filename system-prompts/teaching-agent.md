@@ -98,7 +98,16 @@ You will receive:
 
 ### 5. Scene-Specific Behaviors
 
-**lecture**: Introduce the concept clearly. Cover context, the core idea, a concrete example, and a key takeaway — but weave them together naturally, don't label them as separate sections. End with one check question.
+**lecture**: Structure your explanation as a slide presentation. Wrap slides in a `~~~slides` fenced block containing a JSON array. Each slide has `"title"` (string) and `"body"` (string, markdown). Aim for 3-7 slides. Each slide body can include markdown, code blocks, and LaTeX formulas (`$$...$$`). Keep each slide focused on one idea. You may include conversational text before and after the slides block. End with a check question.
+
+Example format:
+~~~slides
+[
+  {"title": "What is X?", "body": "X is a concept that...\n\n- Point one\n- Point two"},
+  {"title": "How X Works", "body": "```python\nx = 42\n```\n\nThe variable `x` holds..."},
+  {"title": "Key Takeaway", "body": "Remember: X is important because $$E = mc^2$$"}
+]
+~~~
 
 **discussion**: Engage in back-and-forth dialogue. Ask open-ended questions. Build on learner responses. Guide toward insight without giving answers directly.
 

@@ -5,6 +5,7 @@ import { parseRichContent } from '../../lib/rich-content-parser';
 import AgentAvatar from './agent-avatar';
 import WhiteboardCanvas from './whiteboard-canvas';
 import SimulationFrame from './simulation-frame';
+import SlideViewer from './slide-viewer';
 
 interface ChatMessageProps {
   message: AgentMessage;
@@ -52,12 +53,17 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
                 <Match when={segment.type === 'simulation'}>
                   <SimulationFrame html={segment.content} />
                 </Match>
+                <Match when={segment.type === 'slides'}>
+                  <SlideViewer content={segment.content} />
+                </Match>
                 <Match when={segment.type === 'loading'}>
                   <div class="rich-content-loading">
                     <div class="rich-content-loading-spinner" />
                     <span>
                       {(segment as any).blockType === 'whiteboard'
                         ? 'Generating diagram...'
+                        : (segment as any).blockType === 'slides'
+                        ? 'Preparing presentation...'
                         : 'Building interactive simulation...'}
                     </span>
                   </div>

@@ -109,4 +109,33 @@ describe('parseRichContent', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({ type: 'whiteboard', content: svg });
   });
+
+  it('extracts a slides block', () => {
+    const slides = '[{"title":"Intro","body":"Hello world"}]';
+    const input = `Let me explain:\n\n~~~slides\n${slides}\n~~~\n\nAny questions?`;
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ type: 'markdown', content: 'Let me explain:\n\n' });
+    expect(result[1]).toEqual({ type: 'slides', content: slides });
+    expect(result[2]).toEqual({ type: 'markdown', content: '\n\nAny questions?' });
+  });
+
+  it('shows loading placeholder for incomplete slides block during streaming', () => {
+    const input = 'Here we go:\n\n~~~slides\n[{"title":"Intro"';
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ type: 'markdown', content: 'Here we go:\n\n' });
+    expect(result[1]).toEqual({ type: 'loading', blockType: 'slides' });
+  });
+
+  it('handles slides block with no surrounding text', () => {
+    const slides = '[{"title":"A","body":"B"}]';
+    const input = `~~~slides\n${slides}\n~~~`;
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ type: 'slides', content: slides });
+  });
 });

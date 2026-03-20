@@ -82,6 +82,18 @@ defmodule Backend.Agents.TeachingAgent do
     messages ++ [%{role: "system", content: @simulation_hint}]
   end
 
+  @slides_hint """
+  IMPORTANT: This is a lecture scene. You SHOULD structure your explanation as a slide \
+  presentation wrapped in a ~~~slides fenced block. Output a JSON array of slide objects, \
+  each with "title" (string) and "body" (string, markdown with KaTeX formulas and code blocks). \
+  Aim for 3-7 slides. Keep each slide focused on one idea. You may include conversational \
+  text before and/or after the ~~~slides block.\
+  """
+
+  defp inject_format_hint(messages, %{"type" => "lecture"}) do
+    messages ++ [%{role: "system", content: @slides_hint}]
+  end
+
   defp inject_format_hint(messages, _scene_spec), do: messages
 
   # Ensure there's at least one user message so the LLM has something to respond to.

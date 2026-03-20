@@ -71,7 +71,8 @@ You will receive:
     "create_visual_analogy",
     "summarize_module",
     "generate_svg_diagram",
-    "generate_interactive_simulation"
+    "generate_interactive_simulation",
+    "generate_slide_presentation"
   ]
 }
 
@@ -82,7 +83,7 @@ You will receive:
 You may choose one of the following scene types:
 
 ### 1. lecture
-Used for introducing a new concept in a structured way.
+Used for introducing a new concept in a structured way. The teaching agent will generate a structured slide presentation wrapped in a `~~~slides` block containing a JSON array of slides.
 
 ### 2. discussion
 Used for back-and-forth reasoning, clarification, and deeper conceptual understanding.
@@ -141,7 +142,7 @@ Each scene MUST:
 A scene may invoke one or more skills/tools.
 
 Examples:
-- lecture scene → explain_concept, compare_with_known_domain
+- lecture scene → generate_slide_presentation, explain_concept, compare_with_known_domain
 - whiteboard scene → draw_whiteboard_steps, generate_svg_diagram, simplify_explanation
 - quiz scene → generate_quiz, grade_answer
 - recap scene → summarize_module

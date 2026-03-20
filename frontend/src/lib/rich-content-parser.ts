@@ -1,15 +1,18 @@
+export type RichBlockType = 'whiteboard' | 'simulation' | 'slides';
+
 export type RichSegment =
   | { type: 'markdown'; content: string }
   | { type: 'whiteboard'; content: string }
   | { type: 'simulation'; content: string }
-  | { type: 'loading'; blockType: 'whiteboard' | 'simulation' };
+  | { type: 'slides'; content: string }
+  | { type: 'loading'; blockType: RichBlockType };
 
-const RICH_BLOCK_RE = /(?:~~~|```)(?:whiteboard|simulation)\n([\s\S]*?)\n(?:~~~|```)/g;
-const BLOCK_TYPE_RE = /(?:~~~|```)(whiteboard|simulation)/;
-const UNCLOSED_BLOCK_RE = /(?:~~~|```)(whiteboard|simulation)\n[\s\S]*$/;
+const RICH_BLOCK_RE = /(?:~~~|```)(?:whiteboard|simulation|slides)\n([\s\S]*?)\n(?:~~~|```)/g;
+const BLOCK_TYPE_RE = /(?:~~~|```)(whiteboard|simulation|slides)/;
+const UNCLOSED_BLOCK_RE = /(?:~~~|```)(whiteboard|simulation|slides)\n[\s\S]*$/;
 
 /**
- * Parse message content into segments of markdown, whiteboard SVG, and simulation HTML.
+ * Parse message content into segments of markdown, whiteboard SVG, simulation HTML, and slides.
  * Incomplete blocks (during streaming) render as loading placeholders.
  */
 export function parseRichContent(content: string): RichSegment[] {
@@ -30,7 +33,7 @@ export function parseRichContent(content: string): RichSegment[] {
 
     // Extract block type from the opening fence
     const typeMatch = fullMatch.match(BLOCK_TYPE_RE);
-    const blockType = typeMatch![1] as 'whiteboard' | 'simulation';
+    const blockType = typeMatch![1] as RichBlockType;
 
     segments.push({ type: blockType, content: innerContent.trim() });
 
@@ -47,7 +50,7 @@ export function parseRichContent(content: string): RichSegment[] {
       if (fenceStart > 0) {
         segments.push({ type: 'markdown', content: trailing.slice(0, fenceStart) });
       }
-      const blockType = unclosedMatch[1] as 'whiteboard' | 'simulation';
+      const blockType = unclosedMatch[1] as RichBlockType;
       segments.push({ type: 'loading', blockType });
     } else {
       segments.push({ type: 'markdown', content: trailing });
