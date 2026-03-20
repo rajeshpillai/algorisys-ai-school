@@ -211,6 +211,15 @@
 - [ ] Learner model signals visible in UI (understanding level per topic)
 - [ ] Progress export (CSV/JSON)
 
+### Token Usage Optimization
+- [ ] Trim conversation history sent to LLM (sliding window or summarization)
+- [ ] Use cheaper models (gpt-4o-mini) for pipeline agents, reserve gpt-4o for teaching
+- [ ] Cache role synthesis and curriculum plans — don't regenerate on resume
+- [ ] Limit scene engine output size (compact JSON schema)
+- [ ] Add token usage tracking per session (log prompt + completion tokens)
+- [ ] Set max_tokens on LLM calls to cap runaway responses
+- [ ] Debounce rapid user actions that trigger LLM calls
+
 ### Auth & Administration
 - [ ] User authentication (email/password + OAuth)
 - [ ] Admin panel (user management, API key management)
