@@ -155,10 +155,10 @@
 - [x] SlideViewer component with Prev/Next navigation, dot indicators, keyboard support
 - [x] Markdown + KaTeX + code blocks supported in slide body
 - [x] Streaming placeholder ("Preparing presentation...")
-- [ ] Slide animations and transitions (crossfade between slides)
-- [ ] Fullscreen presentation mode (expand slide viewer to full viewport)
+- [x] Slide animations and transitions — 150ms crossfade between slides
+- [x] Fullscreen presentation mode — fixed viewport overlay, larger text, Escape to exit
+- [x] Slide thumbnails sidebar — numbered slide list in fullscreen, click to navigate
 - [ ] Agent spotlight/laser pointer actions (highlight elements during teaching)
-- [ ] Slide thumbnails sidebar for quick navigation
 - [ ] Export slides as standalone HTML or PDF
 
 ### How Other Tools Handle Rich Teaching Content (Research Notes)
