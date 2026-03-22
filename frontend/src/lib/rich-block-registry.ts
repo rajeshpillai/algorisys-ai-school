@@ -12,7 +12,7 @@ import { lazy, type Component } from 'solid-js';
 export interface RichBlockDefinition {
   blockType: string;
   loadingMessage: string;
-  component: Component<{ content: string }>;
+  component: Component<{ content: string; params?: string }>;
 }
 
 const registry: RichBlockDefinition[] = [

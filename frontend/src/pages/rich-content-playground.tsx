@@ -2,7 +2,7 @@ import { createSignal, For, Suspense } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import TopBar from '../components/layout/top-bar';
 import AgentAvatar from '../components/classroom/agent-avatar';
-import { parseRichContent } from '../lib/rich-content-parser';
+import { parseRichContent, mergeConsecutiveWhiteboards } from '../lib/rich-content-parser';
 import { renderMarkdown } from '../lib/markdown-renderer';
 import { getBlockDefinition, getLoadingMessage } from '../lib/rich-block-registry';
 
@@ -136,6 +136,46 @@ Now try this interactive binary search:
   </script>
 </body>
 </html>
+~~~
+
+And here's a **pre-built bubble sort template** — no custom HTML needed:
+
+~~~simulation:template=bubble-sort
+
+~~~
+
+Now let's look at a **multi-step whiteboard** — these consecutive diagrams get slide navigation:
+
+~~~whiteboard
+<svg viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+  <style>text { font-family: sans-serif; }</style>
+  <text x="250" y="30" text-anchor="middle" font-size="16" fill="#334155" font-weight="bold">Step 1: Input</text>
+  <rect x="150" y="60" width="200" height="80" rx="8" fill="#3b82f6" opacity="0.15" stroke="#3b82f6"/>
+  <text x="250" y="105" text-anchor="middle" font-size="14" fill="#334155">Raw Data</text>
+</svg>
+~~~
+
+~~~whiteboard
+<svg viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+  <style>text { font-family: sans-serif; }</style>
+  <text x="250" y="30" text-anchor="middle" font-size="16" fill="#334155" font-weight="bold">Step 2: Process</text>
+  <rect x="50" y="60" width="120" height="80" rx="8" fill="#3b82f6" opacity="0.15" stroke="#3b82f6"/>
+  <text x="110" y="105" text-anchor="middle" font-size="14" fill="#334155">Input</text>
+  <line x1="180" y1="100" x2="310" y2="100" stroke="#10b981" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="320" y="60" width="120" height="80" rx="8" fill="#10b981" opacity="0.15" stroke="#10b981"/>
+  <text x="380" y="105" text-anchor="middle" font-size="14" fill="#334155">Output</text>
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/></marker></defs>
+</svg>
+~~~
+
+~~~whiteboard
+<svg viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+  <style>text { font-family: sans-serif; }</style>
+  <text x="250" y="30" text-anchor="middle" font-size="16" fill="#334155" font-weight="bold">Step 3: Result</text>
+  <rect x="150" y="60" width="200" height="80" rx="8" fill="#10b981" opacity="0.15" stroke="#10b981" stroke-width="2"/>
+  <text x="250" y="100" text-anchor="middle" font-size="16" fill="#10b981" font-weight="bold">✓ Complete</text>
+  <text x="250" y="125" text-anchor="middle" font-size="12" fill="#64748b">Data processed successfully</text>
+</svg>
 ~~~`;
 
 export default function RichContentPlayground() {
@@ -143,9 +183,9 @@ export default function RichContentPlayground() {
   const [activeTab, setActiveTab] = createSignal<'sample' | 'custom'>('sample');
 
   const currentContent = () => activeTab() === 'sample' ? SAMPLE_CONTENT : customContent();
-  const segments = () => parseRichContent(currentContent());
+  const segments = () => mergeConsecutiveWhiteboards(parseRichContent(currentContent()));
 
-  const renderSegment = (segment: { type: string; content?: string; blockType?: string }) => {
+  const renderSegment = (segment: { type: string; content?: string; blockType?: string; params?: string }) => {
     if (segment.type === 'markdown') {
       return <div class="playground-markdown" innerHTML={renderMarkdown(segment.content!)} />;
     }
@@ -166,7 +206,7 @@ export default function RichContentPlayground() {
             <span>{def.loadingMessage}</span>
           </div>
         }>
-          <Dynamic component={def.component} content={segment.content!} />
+          <Dynamic component={def.component} content={segment.content!} params={segment.params} />
         </Suspense>
       );
     }

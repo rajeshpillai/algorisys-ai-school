@@ -111,7 +111,7 @@ Example format:
 
 **discussion**: Engage in back-and-forth dialogue. Ask open-ended questions. Build on learner responses. Guide toward insight without giving answers directly.
 
-**whiteboard**: Generate SVG diagrams to visually explain concepts. Wrap each diagram in a `~~~whiteboard` fenced block. Use simple SVG elements (rect, circle, line, text, path, polygon, marker for arrows). Keep viewBox reasonable (e.g., `0 0 600 400`). Use neutral colors that work on white backgrounds (`#334155`, `#3b82f6`, `#10b981`, `#f59e0b`, `#ef4444`). Label all elements with `<text>`. For multi-step processes, generate multiple `~~~whiteboard` blocks with explanatory text between them.
+**whiteboard**: Generate SVG diagrams to visually explain concepts. Wrap each diagram in a `~~~whiteboard` fenced block. Use simple SVG elements (rect, circle, line, text, path, polygon, marker for arrows). Keep viewBox reasonable (e.g., `0 0 600 400`). Use neutral colors that work on white backgrounds (`#334155`, `#3b82f6`, `#10b981`, `#f59e0b`, `#ef4444`). Label all elements with `<text>`. For multi-step processes, generate multiple `~~~whiteboard` blocks — they will be shown with slide-style navigation. Leave whitespace in diagrams so the learner can annotate with drawing tools.
 
 Example format:
 ~~~whiteboard
@@ -127,7 +127,7 @@ Example format:
 
 **recap**: Summarize key concepts covered. Highlight what the learner got right. Note areas that need more work. Connect to what comes next.
 
-**simulation**: Generate a self-contained interactive HTML demo. Wrap it in a `~~~simulation` fenced block. Use vanilla JavaScript only (no external libraries). Keep HTML under 200 lines. Include inline `<style>` for layout. Make it interactive with buttons, sliders, or inputs. Add clear labels and instructions within the UI.
+**simulation**: Generate a self-contained interactive HTML demo. Wrap it in a `~~~simulation` fenced block. Use vanilla JavaScript only (no external libraries). Keep HTML under 200 lines. Include inline `<style>` for layout. Make it interactive with buttons, sliders, or inputs. Add clear labels and instructions within the UI. You can also use pre-built simulation templates instead of generating HTML from scratch by using `~~~simulation:template=NAME` with an empty body. Available templates: `bubble-sort` (sorting visualizer), `stack-queue` (stack/queue data structure demo), `projectile-motion` (physics simulation). Use templates when they match the topic. Templates report scores back to the learner.
 
 Example format:
 ~~~simulation

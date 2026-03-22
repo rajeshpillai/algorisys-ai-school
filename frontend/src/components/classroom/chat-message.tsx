@@ -2,7 +2,7 @@ import { Show, For, Suspense, type Component } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import type { AgentMessage } from '../../lib/types';
 import { renderMarkdown } from '../../lib/markdown-renderer';
-import { parseRichContent } from '../../lib/rich-content-parser';
+import { parseRichContent, mergeConsecutiveWhiteboards } from '../../lib/rich-content-parser';
 import { getBlockDefinition, getLoadingMessage } from '../../lib/rich-block-registry';
 import AgentAvatar from './agent-avatar';
 
@@ -18,9 +18,9 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
   const cleanContent = () =>
     props.message.content.replace(/\[SCENE_COMPLETE\]/g, '').trimEnd();
 
-  const segments = () => parseRichContent(cleanContent());
+  const segments = () => mergeConsecutiveWhiteboards(parseRichContent(cleanContent()));
 
-  const renderSegment = (segment: { type: string; content?: string; blockType?: string }) => {
+  const renderSegment = (segment: { type: string; content?: string; blockType?: string; params?: string }) => {
     if (segment.type === 'markdown') {
       return <div class="chat-message-content" innerHTML={renderMarkdown(segment.content!)} />;
     }
@@ -42,7 +42,7 @@ const ChatMessage: Component<ChatMessageProps> = (props) => {
             <span>{def.loadingMessage}</span>
           </div>
         }>
-          <Dynamic component={def.component} content={segment.content!} />
+          <Dynamic component={def.component} content={segment.content!} params={segment.params} />
         </Suspense>
       );
     }

@@ -2,16 +2,15 @@ import { getBlockTypePattern } from './rich-block-registry';
 
 export type RichSegment =
   | { type: 'markdown'; content: string }
-  | { type: string; content: string }
+  | { type: string; content: string; params?: string }
   | { type: 'loading'; blockType: string };
 
 // Build regexes dynamically from the registry
 function buildRegexes() {
   const pattern = getBlockTypePattern();
   return {
-    richBlock: new RegExp(`(?:~~~|\`\`\`)(?:${pattern})\\n([\\s\\S]*?)\\n(?:~~~|\`\`\`)`, 'g'),
-    blockType: new RegExp(`(?:~~~|\`\`\`)(${pattern})`),
-    unclosedBlock: new RegExp(`(?:~~~|\`\`\`)(${pattern})\\n[\\s\\S]*$`),
+    richBlock: new RegExp(`(?:~~~|\`\`\`)(${pattern})(?::([^\\n]*))?\\n([\\s\\S]*?)\\n(?:~~~|\`\`\`)`, 'g'),
+    unclosedBlock: new RegExp(`(?:~~~|\`\`\`)(${pattern})(?::([^\\n]*))?\\n[\\s\\S]*$`),
   };
 }
 
@@ -23,23 +22,24 @@ function buildRegexes() {
 export function parseRichContent(content: string): RichSegment[] {
   if (!content) return [];
 
-  const { richBlock, blockType: blockTypeRe, unclosedBlock } = buildRegexes();
+  const { richBlock, unclosedBlock } = buildRegexes();
   const segments: RichSegment[] = [];
   let lastIndex = 0;
 
   for (const match of content.matchAll(richBlock)) {
     const fullMatch = match[0];
-    const innerContent = match[1];
+    const blockType = match[1];
+    const params = match[2] || undefined;
+    const innerContent = match[3];
     const startIndex = match.index!;
 
     if (startIndex > lastIndex) {
       segments.push({ type: 'markdown', content: content.slice(lastIndex, startIndex) });
     }
 
-    const typeMatch = fullMatch.match(blockTypeRe);
-    const blockType = typeMatch![1];
-
-    segments.push({ type: blockType, content: innerContent.trim() });
+    const segment: RichSegment = { type: blockType, content: innerContent.trim() };
+    if (params) (segment as any).params = params;
+    segments.push(segment);
 
     lastIndex = startIndex + fullMatch.length;
   }
@@ -60,4 +60,60 @@ export function parseRichContent(content: string): RichSegment[] {
   }
 
   return segments;
+}
+
+const WHITEBOARD_SLIDE_DELIMITER = '\n---SLIDE---\n';
+const SHORT_MARKDOWN_MAX_LENGTH = 50;
+
+/**
+ * Merge consecutive whiteboard segments into a single multi-slide segment.
+ * Adjacent whiteboards separated by short markdown (<50 chars) are merged.
+ * Content is joined with a delimiter so the adapter can split into slides.
+ */
+export function mergeConsecutiveWhiteboards(segments: RichSegment[]): RichSegment[] {
+  const result: RichSegment[] = [];
+  let i = 0;
+
+  while (i < segments.length) {
+    const seg = segments[i];
+
+    if (seg.type !== 'whiteboard') {
+      result.push(seg);
+      i++;
+      continue;
+    }
+
+    // Start collecting consecutive whiteboards
+    const svgs: string[] = [seg.content!];
+    let j = i + 1;
+
+    while (j < segments.length) {
+      const next = segments[j];
+
+      if (next.type === 'whiteboard') {
+        svgs.push(next.content!);
+        j++;
+      } else if (
+        next.type === 'markdown' &&
+        next.content!.trim().length < SHORT_MARKDOWN_MAX_LENGTH &&
+        j + 1 < segments.length &&
+        segments[j + 1].type === 'whiteboard'
+      ) {
+        // Skip short markdown between whiteboards
+        svgs.push(segments[j + 1].content!);
+        j += 2;
+      } else {
+        break;
+      }
+    }
+
+    if (svgs.length === 1) {
+      result.push(seg);
+    } else {
+      result.push({ type: 'whiteboard', content: svgs.join(WHITEBOARD_SLIDE_DELIMITER) });
+    }
+    i = j;
+  }
+
+  return result;
 }

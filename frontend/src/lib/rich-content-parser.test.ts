@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRichContent, RichSegment } from './rich-content-parser';
+import { parseRichContent, mergeConsecutiveWhiteboards, RichSegment } from './rich-content-parser';
 
 describe('parseRichContent', () => {
   it('returns a single markdown segment for plain text', () => {
@@ -137,5 +137,145 @@ describe('parseRichContent', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({ type: 'slides', content: slides });
+  });
+
+  // --- Params support ---
+
+  it('extracts params from block type (e.g. simulation:template=bubble-sort)', () => {
+    const input = '~~~simulation:template=bubble-sort\n\n~~~';
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('simulation');
+    expect((result[0] as any).params).toBe('template=bubble-sort');
+    expect(result[0].content).toBe('');
+  });
+
+  it('params are undefined when not provided', () => {
+    const html = '<html><body>Hello</body></html>';
+    const input = `~~~simulation\n${html}\n~~~`;
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).params).toBeUndefined();
+  });
+
+  it('handles simulation:template with content body', () => {
+    const input = '~~~simulation:template=stack-queue\nsome override content\n~~~';
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('simulation');
+    expect((result[0] as any).params).toBe('template=stack-queue');
+    expect(result[0].content).toBe('some override content');
+  });
+
+  it('shows loading placeholder for incomplete block with params', () => {
+    const input = 'Try this:\n\n~~~simulation:template=bubble-sort\n<partial...';
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ type: 'markdown', content: 'Try this:\n\n' });
+    expect(result[1]).toEqual({ type: 'loading', blockType: 'simulation' });
+  });
+
+  it('params work with backtick fence', () => {
+    const input = '```simulation:template=projectile-motion\n\n```';
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('simulation');
+    expect((result[0] as any).params).toBe('template=projectile-motion');
+  });
+
+  it('whiteboard blocks without params still work', () => {
+    const svg = '<svg><rect/></svg>';
+    const input = `~~~whiteboard\n${svg}\n~~~`;
+    const result = parseRichContent(input);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ type: 'whiteboard', content: svg });
+    expect((result[0] as any).params).toBeUndefined();
+  });
+});
+
+describe('mergeConsecutiveWhiteboards', () => {
+  const DELIMITER = '\n---SLIDE---\n';
+
+  it('merges two adjacent whiteboard segments', () => {
+    const segments: RichSegment[] = [
+      { type: 'whiteboard', content: '<svg>1</svg>' },
+      { type: 'whiteboard', content: '<svg>2</svg>' },
+    ];
+    const result = mergeConsecutiveWhiteboards(segments);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('whiteboard');
+    expect(result[0].content).toBe(`<svg>1</svg>${DELIMITER}<svg>2</svg>`);
+  });
+
+  it('merges whiteboards separated by short markdown', () => {
+    const segments: RichSegment[] = [
+      { type: 'whiteboard', content: '<svg>1</svg>' },
+      { type: 'markdown', content: '\n\nNext:\n\n' },
+      { type: 'whiteboard', content: '<svg>2</svg>' },
+    ];
+    const result = mergeConsecutiveWhiteboards(segments);
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toContain('<svg>1</svg>');
+    expect(result[0].content).toContain('<svg>2</svg>');
+  });
+
+  it('does NOT merge whiteboards separated by long markdown', () => {
+    const longText = 'A'.repeat(60);
+    const segments: RichSegment[] = [
+      { type: 'whiteboard', content: '<svg>1</svg>' },
+      { type: 'markdown', content: longText },
+      { type: 'whiteboard', content: '<svg>2</svg>' },
+    ];
+    const result = mergeConsecutiveWhiteboards(segments);
+    expect(result).toHaveLength(3);
+  });
+
+  it('does NOT merge whiteboard with non-whiteboard block between', () => {
+    const segments: RichSegment[] = [
+      { type: 'whiteboard', content: '<svg>1</svg>' },
+      { type: 'simulation', content: '<html></html>' },
+      { type: 'whiteboard', content: '<svg>2</svg>' },
+    ];
+    const result = mergeConsecutiveWhiteboards(segments);
+    expect(result).toHaveLength(3);
+  });
+
+  it('returns single whiteboard unchanged', () => {
+    const segments: RichSegment[] = [
+      { type: 'markdown', content: 'Hello' },
+      { type: 'whiteboard', content: '<svg>1</svg>' },
+      { type: 'markdown', content: 'Bye' },
+    ];
+    const result = mergeConsecutiveWhiteboards(segments);
+    expect(result).toHaveLength(3);
+    expect(result[1].content).toBe('<svg>1</svg>');
+    // Should NOT contain delimiter
+    expect(result[1].content).not.toContain(DELIMITER);
+  });
+
+  it('merges three consecutive whiteboards', () => {
+    const segments: RichSegment[] = [
+      { type: 'whiteboard', content: '<svg>1</svg>' },
+      { type: 'whiteboard', content: '<svg>2</svg>' },
+      { type: 'whiteboard', content: '<svg>3</svg>' },
+    ];
+    const result = mergeConsecutiveWhiteboards(segments);
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe(`<svg>1</svg>${DELIMITER}<svg>2</svg>${DELIMITER}<svg>3</svg>`);
+  });
+
+  it('preserves non-whiteboard segments', () => {
+    const segments: RichSegment[] = [
+      { type: 'markdown', content: 'Intro' },
+      { type: 'simulation', content: '<html></html>' },
+    ];
+    const result = mergeConsecutiveWhiteboards(segments);
+    expect(result).toEqual(segments);
   });
 });

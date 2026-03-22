@@ -70,13 +70,16 @@ defmodule Backend.Agents.TeachingAgent do
     "whiteboard" => """
     IMPORTANT: This is a whiteboard scene. You MUST include at least one SVG diagram \
     wrapped in a ~~~whiteboard fenced block. Use simple SVG elements (rect, circle, line, \
-    text, path) with viewBox="0 0 600 400". Do not skip the diagram.\
+    text, path) with viewBox="0 0 600 400". Do not skip the diagram. For multi-step \
+    processes, generate multiple ~~~whiteboard blocks — they will be shown with slide-style \
+    navigation. Leave whitespace so the learner can annotate with drawing tools.\
     """,
     "simulation" => """
-    IMPORTANT: This is a simulation scene. You MUST include a self-contained interactive \
-    HTML demo wrapped in a ~~~simulation fenced block. Use vanilla JavaScript only, \
-    keep it under 200 lines, and include inline styles. Make it interactive with buttons, \
-    sliders, or inputs. Do not skip the interactive demo.\
+    IMPORTANT: This is a simulation scene. You MUST include an interactive demo. You can either: \
+    (1) Generate a self-contained HTML demo wrapped in a ~~~simulation fenced block (vanilla \
+    JavaScript only, under 200 lines, inline styles), OR (2) Use a pre-built template with \
+    ~~~simulation:template=NAME (available: bubble-sort, stack-queue, projectile-motion). \
+    Use templates when they match the topic. Do not skip the interactive demo.\
     """,
     "lecture" => """
     IMPORTANT: This is a lecture scene. You SHOULD structure your explanation as a slide \

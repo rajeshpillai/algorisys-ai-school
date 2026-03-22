@@ -55,4 +55,63 @@ describe('SimulationFrame', () => {
     render(() => <SimulationFrame html={html} />);
     expect(screen.getByText('Reset')).toBeTruthy();
   });
+
+  it('shows score badge when score message received', async () => {
+    const html = '<html><body></body></html>';
+    const { container } = render(() => <SimulationFrame html={html} />);
+
+    // Simulate postMessage from iframe
+    window.dispatchEvent(new MessageEvent('message', {
+      data: { type: 'score', value: 85, label: 'Accuracy' },
+    }));
+
+    // Wait for reactivity
+    await new Promise((r) => setTimeout(r, 10));
+
+    const badge = container.querySelector('.simulation-frame-badge--score');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent).toContain('85%');
+  });
+
+  it('shows complete badge when complete message received', async () => {
+    const html = '<html><body></body></html>';
+    const { container } = render(() => <SimulationFrame html={html} />);
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: { type: 'complete', value: 1, label: 'Sort completed!' },
+    }));
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    const badge = container.querySelector('.simulation-frame-badge--complete');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent).toContain('Sort completed!');
+  });
+
+  it('ignores malformed messages', async () => {
+    const html = '<html><body></body></html>';
+    const { container } = render(() => <SimulationFrame html={html} />);
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: { foo: 'bar' },
+    }));
+    window.dispatchEvent(new MessageEvent('message', {
+      data: 'just a string',
+    }));
+    window.dispatchEvent(new MessageEvent('message', {
+      data: null,
+    }));
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    const badge = container.querySelector('.simulation-frame-badge');
+    expect(badge).toBeNull();
+  });
+
+  it('does not show badge initially', () => {
+    const html = '<html><body></body></html>';
+    const { container } = render(() => <SimulationFrame html={html} />);
+    const badge = container.querySelector('.simulation-frame-badge');
+    expect(badge).toBeNull();
+  });
 });

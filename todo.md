@@ -136,13 +136,13 @@
 - [x] Formula rendering — KaTeX for math/science subjects
 - [x] Rich content parser — unified pipeline for all block types with streaming placeholders
 - [x] Test playground page — /playground route for visual QA of all rich content types
-- [ ] Whiteboard enhancements
-  - [ ] Canvas-based rendering with undo/redo (user can annotate)
-  - [ ] Multi-slide whiteboard support (one per scene)
-  - [ ] Zoom/pan controls for complex diagrams
-- [ ] Simulation enhancements
-  - [ ] Pre-built simulation templates (sorting, physics, data structures)
-  - [ ] Communication between simulation iframe and parent (score reporting)
+- [x] Whiteboard enhancements
+  - [x] Canvas-based rendering with undo/redo (user can annotate)
+  - [x] Multi-slide whiteboard support (one per scene)
+  - [x] Zoom/pan controls for complex diagrams
+- [x] Simulation enhancements
+  - [x] Pre-built simulation templates (sorting, physics, data structures)
+  - [x] Communication between simulation iframe and parent (score reporting)
 
 ### Quiz & Grading Enhancements
 - [x] Multiple question types: single-choice, multiple-choice, short-answer
