@@ -302,6 +302,33 @@ describe('DrawingEngine', () => {
       expect(ctx.restore).toHaveBeenCalled();
     });
 
+    it('renders in-progress line as live preview', () => {
+      engine.beginStroke(10, 20, 'line', '#000', 2);
+      engine.continueStroke(100, 200);
+      // Not ended yet — should still render preview
+      engine.render(ctx);
+
+      expect(ctx.moveTo).toHaveBeenCalledWith(10, 20);
+      expect(ctx.lineTo).toHaveBeenCalledWith(100, 200);
+      expect(ctx.stroke).toHaveBeenCalled();
+    });
+
+    it('renders in-progress rect as live preview', () => {
+      engine.beginStroke(10, 20, 'rect', '#000', 2);
+      engine.continueStroke(110, 80);
+      engine.render(ctx);
+
+      expect(ctx.strokeRect).toHaveBeenCalledWith(10, 20, 100, 60);
+    });
+
+    it('renders in-progress circle as live preview', () => {
+      engine.beginStroke(50, 50, 'circle', '#000', 2);
+      engine.continueStroke(150, 100);
+      engine.render(ctx);
+
+      expect(ctx.ellipse).toHaveBeenCalled();
+    });
+
     it('sets correct stroke styles', () => {
       engine.beginStroke(10, 20, 'freehand', '#ff0000', 5);
       engine.continueStroke(30, 40);

@@ -104,9 +104,7 @@ const WhiteboardCanvas: Component<WhiteboardCanvasProps> = (props) => {
     if (!isDrawing || !drawMode()) return;
     const { x, y } = getCanvasCoords(e);
     engine.continueStroke(x, y);
-    if (activeTool() === 'freehand' || activeTool() === 'eraser') {
-      redraw();
-    }
+    redraw();
   };
 
   const handlePointerUp = () => {

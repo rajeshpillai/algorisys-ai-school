@@ -127,6 +127,48 @@ export class DrawingEngine {
     for (const action of this.actions) {
       this.renderAction(ctx, action);
     }
+
+    // Render in-progress action as live preview
+    if (this.currentAction && this.startPoint) {
+      this.renderPreview(ctx);
+    }
+  }
+
+  private renderPreview(ctx: CanvasRenderingContext2D): void {
+    const action = this.currentAction!;
+    const start = this.startPoint!;
+
+    if (action.type === 'freehand' || action.type === 'eraser') {
+      // Already rendered via committed points in the action
+      this.renderAction(ctx, action);
+      return;
+    }
+
+    const end = action.points.length > 1 ? action.points[action.points.length - 1] : start;
+
+    // Build a temporary preview action with computed bounds/points
+    const preview: DrawAction = { ...action };
+
+    if (action.type === 'line') {
+      preview.points = [start, end];
+      this.renderAction(ctx, preview);
+    } else if (action.type === 'rect') {
+      preview.bounds = {
+        x: Math.min(start.x, end.x),
+        y: Math.min(start.y, end.y),
+        w: Math.abs(end.x - start.x),
+        h: Math.abs(end.y - start.y),
+      };
+      this.renderAction(ctx, preview);
+    } else if (action.type === 'circle') {
+      preview.bounds = {
+        x: Math.min(start.x, end.x),
+        y: Math.min(start.y, end.y),
+        w: Math.abs(end.x - start.x),
+        h: Math.abs(end.y - start.y),
+      };
+      this.renderAction(ctx, preview);
+    }
   }
 
   private renderAction(ctx: CanvasRenderingContext2D, action: DrawAction): void {
