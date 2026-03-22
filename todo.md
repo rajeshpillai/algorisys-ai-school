@@ -119,7 +119,7 @@
 
 ---
 
-## Phase 2 — Feature Gaps (informed by ProductX analysis)
+## Phase 2 — Feature Enhancements
 
 ### Voice & Speech
 - [ ] Text-to-Speech (TTS) for agent narration
