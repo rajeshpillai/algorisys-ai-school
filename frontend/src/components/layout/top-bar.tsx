@@ -15,7 +15,8 @@ export default function TopBar() {
           <span class="top-bar-tagline">Learn anything from first principles</span>
         </div>
         <div class="top-bar-actions">
-          <A href="/history" class="top-bar-history-link">History</A>
+          <A href="/playground" class="top-bar-nav-link">Playground</A>
+          <A href="/history" class="top-bar-nav-link">History</A>
           <button
             class="top-bar-settings-btn"
             onClick={() => setShowSettings(true)}
@@ -78,7 +79,7 @@ export default function TopBar() {
           gap: 0.75rem;
         }
 
-        .top-bar-history-link {
+        .top-bar-nav-link {
           font-size: 0.8rem;
           font-weight: 500;
           color: var(--text-secondary) !important;
@@ -86,7 +87,7 @@ export default function TopBar() {
           transition: color 0.15s;
         }
 
-        .top-bar-history-link:hover {
+        .top-bar-nav-link:hover {
           color: var(--text-primary) !important;
         }
 
