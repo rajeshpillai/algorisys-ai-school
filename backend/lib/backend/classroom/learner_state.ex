@@ -61,4 +61,96 @@ defmodule Backend.Classroom.LearnerState do
       recent_errors: map["recent_errors"] || []
     }
   end
+
+  @doc """
+  Merge a partial updates map (typically from LearnerModel LLM output) into the state.
+
+  - Numeric scores are clamped to 0..100; missing or non-integer values are ignored.
+  - `known_concepts` and `topics_completed` are union-merged (no duplicates, order preserved).
+  - `misconceptions` and `recent_errors` are replaced wholesale (LLM produces the current view).
+  - `quiz_history` is appended (LLM produces only the new entries).
+  - Unknown keys are ignored.
+  """
+  @spec merge_updates(t(), map()) :: t()
+  def merge_updates(%__MODULE__{} = state, updates) when is_map(updates) do
+    state
+    |> apply_score(updates, "understanding_score", :understanding_score)
+    |> apply_score(updates, "confidence", :confidence)
+    |> apply_score(updates, "fatigue", :fatigue)
+    |> apply_string(updates, "preferred_style", :preferred_style)
+    |> apply_string_or_nil(updates, "time_remaining", :time_remaining)
+    |> apply_union(updates, "known_concepts", :known_concepts)
+    |> apply_union(updates, "topics_completed", :topics_completed)
+    |> apply_replace_list(updates, "misconceptions", :misconceptions)
+    |> apply_replace_list(updates, "recent_errors", :recent_errors)
+    |> apply_append_list(updates, "quiz_history", :quiz_history)
+  end
+
+  def merge_updates(%__MODULE__{} = state, _), do: state
+
+  defp fetch(updates, key) do
+    case Map.fetch(updates, key) do
+      {:ok, value} -> {:ok, value}
+      :error -> Map.fetch(updates, String.to_atom(key))
+    end
+  end
+
+  defp apply_score(state, updates, key, field) do
+    case fetch(updates, key) do
+      {:ok, value} when is_integer(value) -> Map.put(state, field, clamp(value))
+      _ -> state
+    end
+  end
+
+  defp apply_string(state, updates, key, field) do
+    case fetch(updates, key) do
+      {:ok, value} when is_binary(value) and value != "" -> Map.put(state, field, value)
+      _ -> state
+    end
+  end
+
+  defp apply_string_or_nil(state, updates, key, field) do
+    case fetch(updates, key) do
+      {:ok, nil} -> Map.put(state, field, nil)
+      {:ok, value} when is_binary(value) -> Map.put(state, field, value)
+      _ -> state
+    end
+  end
+
+  defp apply_union(state, updates, key, field) do
+    case fetch(updates, key) do
+      {:ok, list} when is_list(list) ->
+        existing = Map.get(state, field)
+        new_items = Enum.filter(list, &is_binary/1) -- existing
+        Map.put(state, field, existing ++ new_items)
+
+      _ ->
+        state
+    end
+  end
+
+  defp apply_replace_list(state, updates, key, field) do
+    case fetch(updates, key) do
+      {:ok, list} when is_list(list) ->
+        Map.put(state, field, Enum.filter(list, &is_binary/1))
+
+      _ ->
+        state
+    end
+  end
+
+  defp apply_append_list(state, updates, key, field) do
+    case fetch(updates, key) do
+      {:ok, list} when is_list(list) ->
+        existing = Map.get(state, field)
+        Map.put(state, field, existing ++ Enum.filter(list, &is_map/1))
+
+      _ ->
+        state
+    end
+  end
+
+  defp clamp(n) when n < 0, do: 0
+  defp clamp(n) when n > 100, do: 100
+  defp clamp(n), do: n
 end

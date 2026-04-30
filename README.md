@@ -101,7 +101,7 @@ mix ecto.setup
 mix phx.server
 ```
 
-The API runs at http://localhost:4000
+The API runs at http://localhost:4001
 
 ### 5. Start the frontend
 

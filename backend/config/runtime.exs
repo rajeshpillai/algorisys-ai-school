@@ -44,8 +44,9 @@ if System.get_env("PHX_SERVER") do
   config :backend, BackendWeb.Endpoint, server: true
 end
 
-config :backend, BackendWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+if port = System.get_env("PORT") do
+  config :backend, BackendWeb.Endpoint, http: [port: String.to_integer(port)]
+end
 
 # LLM configuration
 config :backend, :llm,

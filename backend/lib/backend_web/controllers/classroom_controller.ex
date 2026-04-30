@@ -17,7 +17,12 @@ defmodule BackendWeb.ClassroomController do
       llm_config = sanitize_llm_config(params["llm_config"])
       session_id = generate_session_id()
 
-      case Backend.Classroom.SessionSupervisor.start_session(session_id, goal, learner_profile, llm_config) do
+      case Backend.Classroom.SessionSupervisor.start_session(
+             session_id,
+             goal,
+             learner_profile,
+             llm_config
+           ) do
         {:ok, _pid} ->
           # Store learner_id and source_material_id on the session record
           if learner_id do
@@ -97,6 +102,7 @@ defmodule BackendWeb.ClassroomController do
   end
 
   defp sanitize_llm_config(nil), do: nil
+
   defp sanitize_llm_config(config) when is_map(config) do
     config
     |> Map.take(["provider", "openai_api_key", "anthropic_api_key", "ollama_base_url"])
@@ -105,5 +111,6 @@ defmodule BackendWeb.ClassroomController do
       sanitized -> sanitized
     end
   end
+
   defp sanitize_llm_config(_), do: nil
 end

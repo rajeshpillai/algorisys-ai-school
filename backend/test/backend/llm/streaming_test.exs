@@ -250,7 +250,9 @@ defmodule Backend.LLM.StreamingTest do
 
   defp split_on_newlines(buffer) do
     case String.split(buffer, "\n") do
-      [] -> {[], buffer}
+      [] ->
+        {[], buffer}
+
       parts ->
         {complete, [remaining]} = Enum.split(parts, -1)
         {complete, remaining}

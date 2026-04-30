@@ -4,11 +4,11 @@ defmodule Backend.Content.Schemas.SourceMaterial do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   schema "source_materials" do
-    field :filename, :string
-    field :content, :string
-    field :summary, :string
-    field :page_count, :integer
-    field :char_count, :integer
+    field(:filename, :string)
+    field(:content, :string)
+    field(:summary, :string)
+    field(:page_count, :integer)
+    field(:char_count, :integer)
 
     timestamps()
   end

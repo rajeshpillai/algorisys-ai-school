@@ -186,24 +186,42 @@ defmodule Backend.Classroom.StoreTest do
       {:ok, _} = Store.create_session(id, "State transitions", nil)
 
       # Transition to teaching
-      {:ok, _} = Store.save_state(%{
-        id: id, state: :teaching, agents: [], learner_state: %LearnerState{},
-        current_scene: "intro", current_scene_spec: nil, current_topic: "basics",
-        current_agent: "Teacher", orchestrator_decision: nil, curriculum_plan: nil,
-        current_module_index: 0, current_lesson_index: 0
-      })
+      {:ok, _} =
+        Store.save_state(%{
+          id: id,
+          state: :teaching,
+          agents: [],
+          learner_state: %LearnerState{},
+          current_scene: "intro",
+          current_scene_spec: nil,
+          current_topic: "basics",
+          current_agent: "Teacher",
+          orchestrator_decision: nil,
+          curriculum_plan: nil,
+          current_module_index: 0,
+          current_lesson_index: 0
+        })
 
       loaded = Store.load_session(id)
       assert loaded.state == "teaching"
       assert loaded.current_topic == "basics"
 
       # Transition to waiting
-      {:ok, _} = Store.save_state(%{
-        id: id, state: :waiting, agents: [], learner_state: %LearnerState{},
-        current_scene: "intro", current_scene_spec: nil, current_topic: "basics",
-        current_agent: nil, orchestrator_decision: nil, curriculum_plan: nil,
-        current_module_index: 0, current_lesson_index: 0
-      })
+      {:ok, _} =
+        Store.save_state(%{
+          id: id,
+          state: :waiting,
+          agents: [],
+          learner_state: %LearnerState{},
+          current_scene: "intro",
+          current_scene_spec: nil,
+          current_topic: "basics",
+          current_agent: nil,
+          orchestrator_decision: nil,
+          curriculum_plan: nil,
+          current_module_index: 0,
+          current_lesson_index: 0
+        })
 
       loaded = Store.load_session(id)
       assert loaded.state == "waiting"
@@ -220,19 +238,34 @@ defmodule Backend.Classroom.StoreTest do
 
       # Append messages
       {:ok, _} = Store.append_message(id, "user", "Teach me Elixir")
-      {:ok, _} = Store.append_message(id, "assistant", "Let's start with pattern matching!", "Elixir Guide", "teacher")
+
+      {:ok, _} =
+        Store.append_message(
+          id,
+          "assistant",
+          "Let's start with pattern matching!",
+          "Elixir Guide",
+          "teacher"
+        )
 
       # Save state
-      {:ok, _} = Store.save_state(%{
-        id: id, state: :teaching,
-        agents: [%{"name" => "Elixir Guide", "role" => "teacher"}],
-        learner_state: %LearnerState{understanding_score: 65, topics_completed: ["intro"]},
-        current_scene: "lecture", current_scene_spec: %{"type" => "lecture"},
-        current_topic: "Pattern Matching", current_agent: "Elixir Guide",
-        orchestrator_decision: %{"action" => "teach"},
-        curriculum_plan: %{"modules" => [%{"title" => "Basics", "lessons" => ["Intro", "Pattern Matching"]}]},
-        current_module_index: 0, current_lesson_index: 1
-      })
+      {:ok, _} =
+        Store.save_state(%{
+          id: id,
+          state: :teaching,
+          agents: [%{"name" => "Elixir Guide", "role" => "teacher"}],
+          learner_state: %LearnerState{understanding_score: 65, topics_completed: ["intro"]},
+          current_scene: "lecture",
+          current_scene_spec: %{"type" => "lecture"},
+          current_topic: "Pattern Matching",
+          current_agent: "Elixir Guide",
+          orchestrator_decision: %{"action" => "teach"},
+          curriculum_plan: %{
+            "modules" => [%{"title" => "Basics", "lessons" => ["Intro", "Pattern Matching"]}]
+          },
+          current_module_index: 0,
+          current_lesson_index: 1
+        })
 
       # Load and verify full state
       loaded = Store.load_session(id)

@@ -5,10 +5,11 @@ defmodule Backend.LLM.PromptBuilderTest do
 
   describe "build_messages/2" do
     test "creates system message followed by context" do
-      messages = PromptBuilder.build_messages("You are a teacher", [
-        %{role: "user", content: "Hello"},
-        %{role: "assistant", content: "Hi there!"}
-      ])
+      messages =
+        PromptBuilder.build_messages("You are a teacher", [
+          %{role: "user", content: "Hello"},
+          %{role: "assistant", content: "Hi there!"}
+        ])
 
       assert length(messages) == 3
       assert hd(messages) == %{role: "system", content: "You are a teacher"}
@@ -22,9 +23,10 @@ defmodule Backend.LLM.PromptBuilderTest do
     end
 
     test "normalizes string-keyed messages" do
-      messages = PromptBuilder.build_messages("Prompt", [
-        %{"role" => "user", "content" => "Hello"}
-      ])
+      messages =
+        PromptBuilder.build_messages("Prompt", [
+          %{"role" => "user", "content" => "Hello"}
+        ])
 
       assert Enum.at(messages, 1) == %{role: "user", content: "Hello"}
     end
@@ -85,18 +87,20 @@ defmodule Backend.LLM.PromptBuilderTest do
       role_spec = %{"name" => "Code Coach", "type" => "teaching"}
       scene_spec = %{"scene" => %{"type" => "lecture"}}
       learner_state = %{"understanding_score" => 60}
+
       history = [
         %{role: "user", content: "Explain loops"},
         %{role: "assistant", content: "Loops repeat code..."}
       ]
 
-      messages = PromptBuilder.build_teaching_messages(
-        "You are a teaching agent.",
-        role_spec,
-        scene_spec,
-        history,
-        learner_state
-      )
+      messages =
+        PromptBuilder.build_teaching_messages(
+          "You are a teaching agent.",
+          role_spec,
+          scene_spec,
+          history,
+          learner_state
+        )
 
       # System message + 2 history messages
       assert length(messages) == 3
@@ -113,13 +117,14 @@ defmodule Backend.LLM.PromptBuilderTest do
     end
 
     test "works with empty conversation history" do
-      messages = PromptBuilder.build_teaching_messages(
-        "Teach.",
-        %{"name" => "Teacher"},
-        %{"scene" => %{}},
-        [],
-        %{"score" => 50}
-      )
+      messages =
+        PromptBuilder.build_teaching_messages(
+          "Teach.",
+          %{"name" => "Teacher"},
+          %{"scene" => %{}},
+          [],
+          %{"score" => 50}
+        )
 
       assert length(messages) == 1
       assert hd(messages).role == "system"

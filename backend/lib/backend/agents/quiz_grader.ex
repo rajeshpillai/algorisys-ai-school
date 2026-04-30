@@ -27,12 +27,13 @@ defmodule Backend.Agents.QuizGrader do
     total_points = Enum.reduce(results, 0, fn r, acc -> acc + r.max_points end)
     percent = if total_points > 0, do: round(total_score / total_points * 100), else: 0
 
-    {:ok, %{
-      total_score: total_score,
-      total_points: total_points,
-      percent: percent,
-      results: results
-    }}
+    {:ok,
+     %{
+       total_score: total_score,
+       total_points: total_points,
+       percent: percent,
+       results: results
+     }}
   rescue
     e ->
       Logger.error("Quiz grading crashed: #{Exception.message(e)}")
@@ -57,7 +58,11 @@ defmodule Backend.Agents.QuizGrader do
       correct: is_correct,
       score: if(is_correct, do: points, else: 0),
       max_points: points,
-      feedback: if(is_correct, do: "Correct!", else: "Incorrect. The correct answer was option #{correct_idx + 1}.")
+      feedback:
+        if(is_correct,
+          do: "Correct!",
+          else: "Incorrect. The correct answer was option #{correct_idx + 1}."
+        )
     }
   end
 
@@ -107,16 +112,22 @@ defmodule Backend.Agents.QuizGrader do
 
   defp grade_with_llm(question, user_answer, points, opts) do
     messages = [
-      %{role: "system", content: """
-      You are a quiz grader. Grade the student's answer to the question.
-      Respond with valid JSON only:
-      {"score": <0 to #{points}>, "feedback": "<brief feedback>"}
-      """},
-      %{role: "user", content: """
-      Question: #{question["question"]}
-      Student's answer: #{user_answer}
-      Maximum points: #{points}
-      """}
+      %{
+        role: "system",
+        content: """
+        You are a quiz grader. Grade the student's answer to the question.
+        Respond with valid JSON only:
+        {"score": <0 to #{points}>, "feedback": "<brief feedback>"}
+        """
+      },
+      %{
+        role: "user",
+        content: """
+        Question: #{question["question"]}
+        Student's answer: #{user_answer}
+        Maximum points: #{points}
+        """
+      }
     ]
 
     llm_opts = [model: @model] ++ Keyword.take(opts, [:llm_config])

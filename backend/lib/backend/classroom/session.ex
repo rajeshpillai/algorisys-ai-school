@@ -9,9 +9,20 @@ defmodule Backend.Classroom.Session do
 
   require Logger
 
-  alias Backend.Agents.{CurriculumPlanner, RoleSynthesis, Orchestrator, SceneEngine, TeachingAgent}
+  alias Backend.Agents.{
+    CurriculumPlanner,
+    LearnerModel,
+    Orchestrator,
+    QuizDesigner,
+    RoleSynthesis,
+    SceneEngine,
+    TeachingAgent
+  }
+
   alias Backend.Classroom.{LearnerState, Store}
   alias Backend.LLM.{PromptBuilder, Streaming}
+
+  @learner_model_history_window 6
 
   defstruct [
     :id,
@@ -30,6 +41,7 @@ defmodule Backend.Classroom.Session do
     orchestrator_decision: nil,
     llm_config: nil,
     source_material: nil,
+    learner_eval_seq: 0,
     state: :initializing
   ]
 
@@ -52,6 +64,24 @@ defmodule Backend.Classroom.Session do
 
   def send_action(session_id, action) do
     GenServer.cast(via_tuple(session_id), {:action, action})
+  end
+
+  def record_quiz_result(session_id, topic, result) do
+    GenServer.cast(via_tuple(session_id), {:record_quiz_result, topic, result})
+  catch
+    :exit, _ -> :ok
+  end
+
+  @doc """
+  Return a snapshot of the session sufficient to rehydrate a (re)connecting client.
+
+  Includes full message history (loaded from DB so agent metadata is preserved),
+  agents, curriculum position, learner state, and current scene/topic/agent.
+  """
+  def snapshot(session_id) do
+    GenServer.call(via_tuple(session_id), :snapshot, 10_000)
+  catch
+    :exit, _ -> {:error, :not_found}
   end
 
   defp via_tuple(session_id) do
@@ -104,6 +134,31 @@ defmodule Backend.Classroom.Session do
   end
 
   @impl true
+  def handle_call(:snapshot, _from, state) do
+    {total_lessons, completed_lessons} = curriculum_progress(state)
+
+    snapshot = %{
+      id: state.id,
+      goal: state.goal,
+      state: state.state,
+      agents: state.agents,
+      messages: snapshot_messages(state.id),
+      current_topic: state.current_topic,
+      current_scene: state.current_scene,
+      current_agent: state.current_agent,
+      curriculum: %{
+        plan: state.curriculum_plan,
+        current_module_index: state.current_module_index,
+        current_lesson_index: state.current_lesson_index,
+        total_lessons: total_lessons,
+        completed_lessons: completed_lessons
+      },
+      learner_state: LearnerState.to_map(state.learner_state)
+    }
+
+    {:reply, {:ok, snapshot}, state}
+  end
+
   def handle_call(:get_state, _from, state) do
     {total_lessons, completed_lessons} = curriculum_progress(state)
 
@@ -162,6 +217,25 @@ defmodule Backend.Classroom.Session do
     {:noreply, state}
   end
 
+  def handle_cast({:record_quiz_result, topic, result}, state) do
+    entry = %{
+      "topic" => topic || state.current_topic,
+      "score" => result[:total_score] || result["total_score"],
+      "total" => result[:total_points] || result["total_points"],
+      "percent" => result[:percent] || result["percent"],
+      "timestamp" => DateTime.to_iso8601(DateTime.utc_now())
+    }
+
+    new_history = state.learner_state.quiz_history ++ [entry]
+    new_learner_state = %{state.learner_state | quiz_history: new_history}
+    new_state = %{state | learner_state: new_learner_state}
+
+    Store.save_state(new_state)
+    broadcast(state.id, "learner_state_updated", LearnerState.to_map(new_learner_state))
+
+    {:noreply, new_state}
+  end
+
   # --- All handle_info clauses grouped together ---
 
   @impl true
@@ -169,7 +243,9 @@ defmodule Backend.Classroom.Session do
     # Reload from DB to pick up source_material_id set by the controller
     state =
       case Store.load_session(state.id) do
-        nil -> state
+        nil ->
+          state
+
         persisted ->
           if persisted.source_material_id && is_nil(state.source_material) do
             case Backend.Content.SourceMaterial.get(persisted.source_material_id) do
@@ -185,20 +261,24 @@ defmodule Backend.Classroom.Session do
     {:noreply, state}
   end
 
-  def handle_info({:pipeline_started, agents, decision, scene_spec, selected_agent, curriculum_plan}, state) do
+  def handle_info(
+        {:pipeline_started, agents, decision, scene_spec, selected_agent, curriculum_plan},
+        state
+      ) do
     next_action = decision["next_action"] || %{}
     agent_name = next_action["agent"] || first_agent_name(agents)
     scene_type = next_action["scene"] || "lecture"
 
-    new_state = %{state |
-      agents: agents,
-      curriculum_plan: curriculum_plan,
-      orchestrator_decision: decision,
-      current_scene: scene_type,
-      current_scene_spec: scene_spec,
-      current_topic: (decision["state_updates"] || %{})["focus_topic"] || state.goal,
-      current_agent: agent_name,
-      state: :teaching
+    new_state = %{
+      state
+      | agents: agents,
+        curriculum_plan: curriculum_plan,
+        orchestrator_decision: decision,
+        current_scene: scene_type,
+        current_scene_spec: scene_spec,
+        current_topic: (decision["state_updates"] || %{})["focus_topic"] || state.goal,
+        current_agent: agent_name,
+        state: :teaching
     }
 
     Store.save_state(new_state)
@@ -213,13 +293,15 @@ defmodule Backend.Classroom.Session do
     agent_name = next_action["agent"] || state.current_agent || "Teacher"
     scene_type = next_action["scene"] || "lecture"
 
-    new_state = %{state |
-      orchestrator_decision: decision,
-      current_scene: scene_type,
-      current_scene_spec: scene_spec,
-      current_topic: (decision["state_updates"] || %{})["focus_topic"] || state.current_topic || state.goal,
-      current_agent: agent_name,
-      state: :teaching
+    new_state = %{
+      state
+      | orchestrator_decision: decision,
+        current_scene: scene_type,
+        current_scene_spec: scene_spec,
+        current_topic:
+          (decision["state_updates"] || %{})["focus_topic"] || state.current_topic || state.goal,
+        current_agent: agent_name,
+        state: :teaching
     }
 
     Store.save_state(new_state)
@@ -242,6 +324,9 @@ defmodule Backend.Classroom.Session do
     # Broadcast progress update to frontend
     broadcast_progress(new_state)
 
+    # Kick off async LearnerModel evaluation; result returns via :learner_state_updated.
+    new_state = spawn_learner_eval(new_state)
+
     # Check if more lessons — transition to awaiting_advance if so
     new_state =
       case maybe_auto_advance(new_state) do
@@ -252,10 +337,36 @@ defmodule Backend.Classroom.Session do
     {:noreply, new_state}
   end
 
+  def handle_info(
+        {:learner_state_updated, seq, %LearnerState{} = updated_ls},
+        %{learner_eval_seq: cur_seq} = state
+      )
+      when seq == cur_seq do
+    new_state = %{state | learner_state: updated_ls}
+    Store.save_state(new_state)
+    broadcast(state.id, "learner_state_updated", LearnerState.to_map(updated_ls))
+    {:noreply, new_state}
+  end
+
+  def handle_info({:learner_state_updated, _stale_seq, _ls}, state) do
+    # A newer turn already kicked off another evaluation; drop this stale result.
+    {:noreply, state}
+  end
+
+  def handle_info({:quiz_fallback, scene_spec, selected_agent}, state) do
+    spawn_teaching(state, selected_agent, scene_spec)
+    {:noreply, state}
+  end
+
   def handle_info({:roundtable_done, transcript}, state) do
     # Store all roundtable messages and transition to waiting
     new_messages =
-      Enum.reduce(transcript, state.messages, fn %{agent_name: name, agent_role: role, content: text}, msgs ->
+      Enum.reduce(transcript, state.messages, fn %{
+                                                   agent_name: name,
+                                                   agent_role: role,
+                                                   content: text
+                                                 },
+                                                 msgs ->
         Store.append_message(state.id, "assistant", text, name, role)
         msgs ++ [%{role: "assistant", content: "[#{name}]: #{text}"}]
       end)
@@ -263,6 +374,8 @@ defmodule Backend.Classroom.Session do
     new_state = advance_curriculum(%{state | messages: new_messages, state: :waiting})
     Store.save_state(new_state)
     broadcast_progress(new_state)
+
+    new_state = spawn_learner_eval(new_state)
 
     new_state =
       case maybe_auto_advance(new_state) do
@@ -351,7 +464,8 @@ defmodule Backend.Classroom.Session do
               id: generate_id(),
               agent_name: "System",
               agent_role: "system",
-              content: "Assembled a team of #{length(agents)} specialists: #{Enum.map_join(agents, ", ", & &1["name"])}",
+              content:
+                "Assembled a team of #{length(agents)} specialists: #{Enum.map_join(agents, ", ", & &1["name"])}",
               timestamp: System.system_time(:millisecond)
             })
 
@@ -367,14 +481,18 @@ defmodule Backend.Classroom.Session do
         case CurriculumPlanner.generate_plan(goal, learner_profile, llm_opts) do
           {:ok, plan} ->
             modules = plan["modules"] || []
-            total_lessons = Enum.reduce(modules, 0, fn m, acc -> acc + length(m["lessons"] || []) end)
+
+            total_lessons =
+              Enum.reduce(modules, 0, fn m, acc -> acc + length(m["lessons"] || []) end)
+
             total_minutes = plan["total_estimated_minutes"] || "?"
 
             broadcast(session_id, "agent_message", %{
               id: generate_id(),
               agent_name: "System",
               agent_role: "system",
-              content: "Created a learning plan: #{length(modules)} modules, #{total_lessons} lessons (~#{total_minutes} min)",
+              content:
+                "Created a learning plan: #{length(modules)} modules, #{total_lessons} lessons (~#{total_minutes} min)",
               timestamp: System.system_time(:millisecond)
             })
 
@@ -407,8 +525,13 @@ defmodule Backend.Classroom.Session do
 
           {:error, reason} ->
             Logger.error("Orchestrator failed: #{inspect(reason)}, using fallback")
+
             %{
-              "next_action" => %{"agent" => first_agent_name(agents), "scene" => "lecture", "action_type" => "explain"},
+              "next_action" => %{
+                "agent" => first_agent_name(agents),
+                "scene" => "lecture",
+                "action_type" => "explain"
+              },
               "state_updates" => %{"focus_topic" => first_topic}
             }
         end
@@ -420,7 +543,13 @@ defmodule Backend.Classroom.Session do
 
       # Step 4: Scene Engine
       scene_spec =
-        case SceneEngine.design_scene(first_topic, selected_agent, action_type, learner_state, llm_opts) do
+        case SceneEngine.design_scene(
+               first_topic,
+               selected_agent,
+               action_type,
+               learner_state,
+               llm_opts
+             ) do
           {:ok, spec} ->
             Logger.info("Scene engine designed: #{inspect((spec["scene"] || %{})["type"])}")
             spec
@@ -430,7 +559,10 @@ defmodule Backend.Classroom.Session do
             fallback_scene_spec_static(first_topic, selected_agent)
         end
 
-      send(gen_server_pid, {:pipeline_started, agents, decision, scene_spec, selected_agent, curriculum_plan})
+      send(
+        gen_server_pid,
+        {:pipeline_started, agents, decision, scene_spec, selected_agent, curriculum_plan}
+      )
     end)
   end
 
@@ -464,8 +596,13 @@ defmodule Backend.Classroom.Session do
 
           {:error, reason} ->
             Logger.error("Orchestrator failed: #{inspect(reason)}, using fallback")
+
             %{
-              "next_action" => %{"agent" => first_agent_name(agents), "scene" => "lecture", "action_type" => "explain"},
+              "next_action" => %{
+                "agent" => first_agent_name(agents),
+                "scene" => "lecture",
+                "action_type" => "explain"
+              },
               "state_updates" => %{"focus_topic" => current_topic}
             }
         end
@@ -476,7 +613,13 @@ defmodule Backend.Classroom.Session do
       selected_agent = find_agent(agents, agent_name)
 
       scene_spec =
-        case SceneEngine.design_scene(current_topic, selected_agent, action_type, learner_state, llm_opts) do
+        case SceneEngine.design_scene(
+               current_topic,
+               selected_agent,
+               action_type,
+               learner_state,
+               llm_opts
+             ) do
           {:ok, spec} ->
             Logger.info("Scene engine designed: #{inspect((spec["scene"] || %{})["type"])}")
             spec
@@ -494,22 +637,110 @@ defmodule Backend.Classroom.Session do
     scene = scene_spec["scene"] || %{}
     scene_type = scene["type"] || state.current_scene || "lecture"
 
-    if scene_type == "roundtable" do
-      turn_order = scene["turn_order"] || scene["participating_agents"] || []
-      agents_in_order = Enum.map(turn_order, fn name -> find_agent(state.agents, name) end)
-      agents_in_order = Enum.filter(agents_in_order, & &1)
+    cond do
+      scene_type == "roundtable" ->
+        turn_order = scene["turn_order"] || scene["participating_agents"] || []
+        agents_in_order = Enum.map(turn_order, fn name -> find_agent(state.agents, name) end)
+        agents_in_order = Enum.filter(agents_in_order, & &1)
 
-      if length(agents_in_order) >= 2 do
-        max_rounds = scene["max_rounds"] || 1
-        spawn_roundtable(state, scene_spec, agents_in_order, max_rounds)
-      else
-        # Fallback to normal teaching if not enough agents for roundtable
+        if length(agents_in_order) >= 2 do
+          max_rounds = scene["max_rounds"] || 1
+          spawn_roundtable(state, scene_spec, agents_in_order, max_rounds)
+        else
+          spawn_teaching(state, selected_agent, scene_spec)
+        end
+
+      scene_type == "quiz" ->
+        spawn_quiz(state, scene_spec, selected_agent)
+
+      true ->
         spawn_teaching(state, selected_agent, scene_spec)
-      end
-    else
-      spawn_teaching(state, selected_agent, scene_spec)
     end
   end
+
+  defp spawn_quiz(state, scene_spec, selected_agent) do
+    scene = scene_spec["scene"] || %{}
+    session_id = state.id
+    gen_server_pid = self()
+    learner_state = state.learner_state
+    llm_config = state.llm_config
+    llm_opts = if llm_config, do: [llm_config: llm_config], else: []
+
+    topic =
+      scene["topic"] || scene["focus"] || state.current_topic || state.goal || "current topic"
+
+    difficulty = parse_quiz_difficulty(scene["difficulty"])
+    count = parse_quiz_count(scene["count"] || scene["question_count"])
+
+    agent_name = selected_agent["name"] || state.current_agent || "Quiz Designer"
+    agent_role = selected_agent["type"] || "assessment"
+
+    Task.start(fn ->
+      case QuizDesigner.design_quiz(topic, difficulty, count, learner_state, llm_opts) do
+        {:ok, questions} when is_list(questions) and questions != [] ->
+          payload = build_quiz_payload(topic, questions)
+
+          broadcast(session_id, "quiz_questions", payload)
+
+          markdown = format_quiz_markdown(payload)
+
+          broadcast(session_id, "agent_message", %{
+            content: markdown,
+            agent: agent_name,
+            agent_role: agent_role,
+            done: true
+          })
+
+          send(gen_server_pid, {:teaching_done, agent_name, agent_role, markdown})
+
+        {:ok, _empty} ->
+          Logger.warning("QuizDesigner returned no questions; falling back to teaching path.")
+          send(gen_server_pid, {:quiz_fallback, scene_spec, selected_agent})
+
+        {:error, reason} ->
+          Logger.error("QuizDesigner failed (#{inspect(reason)}); falling back to teaching path.")
+          send(gen_server_pid, {:quiz_fallback, scene_spec, selected_agent})
+      end
+    end)
+  end
+
+  defp build_quiz_payload(topic, questions) do
+    total_points =
+      Enum.reduce(questions, 0, fn q, acc -> acc + (q["points"] || 1) end)
+
+    %{
+      topic: topic,
+      questions: questions,
+      total_points: total_points
+    }
+  end
+
+  defp format_quiz_markdown(%{topic: topic, questions: questions} = payload) do
+    json = Jason.encode!(payload, pretty: true)
+
+    """
+    Here is a quick quiz on **#{topic}** — #{length(questions)} question(s).
+
+    ```json
+    #{json}
+    ```
+    """
+  end
+
+  defp parse_quiz_difficulty(d) when d in ["easy", :easy], do: :easy
+  defp parse_quiz_difficulty(d) when d in ["hard", :hard], do: :hard
+  defp parse_quiz_difficulty(_), do: :medium
+
+  defp parse_quiz_count(n) when is_integer(n) and n > 0 and n <= 10, do: n
+
+  defp parse_quiz_count(n) when is_binary(n) do
+    case Integer.parse(n) do
+      {i, _} when i > 0 and i <= 10 -> i
+      _ -> 4
+    end
+  end
+
+  defp parse_quiz_count(_), do: 4
 
   defp spawn_roundtable(state, scene_spec, agents_in_order, max_rounds) do
     session_id = state.id
@@ -527,9 +758,11 @@ defmodule Backend.Classroom.Session do
       end
 
     agent_names = Enum.map(agents_in_order, & &1["name"])
-    discussion_prompt = get_in(scene_spec, ["scene", "discussion_prompt"]) ||
-                        get_in(scene_spec, ["scene", "objective"]) ||
-                        state.current_topic || state.goal
+
+    discussion_prompt =
+      get_in(scene_spec, ["scene", "discussion_prompt"]) ||
+        get_in(scene_spec, ["scene", "objective"]) ||
+        state.current_topic || state.goal
 
     # Broadcast roundtable start
     broadcast(session_id, "roundtable_start", %{
@@ -538,22 +771,51 @@ defmodule Backend.Classroom.Session do
     })
 
     Task.start(fn ->
-      transcript = run_roundtable_turns(
-        session_id, agents_in_order, scene_spec, learner_state,
-        llm_opts, source_content, max_rounds
-      )
+      transcript =
+        run_roundtable_turns(
+          session_id,
+          agents_in_order,
+          scene_spec,
+          learner_state,
+          llm_opts,
+          source_content,
+          max_rounds
+        )
 
       broadcast(session_id, "roundtable_done", %{})
       send(gen_server_pid, {:roundtable_done, transcript})
     end)
   end
 
-  defp run_roundtable_turns(session_id, agents, scene_spec, learner_state, llm_opts, source_content, max_rounds) do
+  defp run_roundtable_turns(
+         session_id,
+         agents,
+         scene_spec,
+         learner_state,
+         llm_opts,
+         source_content,
+         max_rounds
+       ) do
     Enum.reduce(1..max_rounds, [], fn _round, transcript ->
       Enum.reduce(agents, transcript, fn agent, acc ->
-        case teach_roundtable_turn(session_id, agent, scene_spec, acc, learner_state, llm_opts, source_content) do
+        case teach_roundtable_turn(
+               session_id,
+               agent,
+               scene_spec,
+               acc,
+               learner_state,
+               llm_opts,
+               source_content
+             ) do
           {:ok, text} ->
-            acc ++ [%{agent_name: agent["name"], agent_role: agent["type"] || "teaching", content: text}]
+            acc ++
+              [
+                %{
+                  agent_name: agent["name"],
+                  agent_role: agent["type"] || "teaching",
+                  content: text
+                }
+              ]
 
           {:error, reason} ->
             Logger.error("Roundtable turn failed for #{agent["name"]}: #{inspect(reason)}")
@@ -563,7 +825,15 @@ defmodule Backend.Classroom.Session do
     end)
   end
 
-  defp teach_roundtable_turn(session_id, agent, scene_spec, transcript, learner_state, llm_opts, source_content) do
+  defp teach_roundtable_turn(
+         session_id,
+         agent,
+         scene_spec,
+         transcript,
+         learner_state,
+         llm_opts,
+         source_content
+       ) do
     agent_name = agent["name"] || "Agent"
     agent_role = agent["type"] || "teaching"
     ref = make_ref()
@@ -582,6 +852,7 @@ defmodule Backend.Classroom.Session do
           agent_name: agent_name,
           agent_role: agent_role
         })
+
         send(parent, {ref, :done, full_text})
 
       {:error, reason} ->
@@ -590,9 +861,15 @@ defmodule Backend.Classroom.Session do
 
     case PromptBuilder.load_prompt("teaching-agent") do
       {:ok, base_prompt} ->
-        messages = PromptBuilder.build_roundtable_messages(
-          base_prompt, agent, extract_scene(scene_spec), transcript, LearnerState.to_map(learner_state), source_content
-        )
+        messages =
+          PromptBuilder.build_roundtable_messages(
+            base_prompt,
+            agent,
+            extract_scene(scene_spec),
+            transcript,
+            LearnerState.to_map(learner_state),
+            source_content
+          )
 
         teach_opts = [model: "gpt-4o"] ++ Keyword.take(llm_opts, [:llm_config])
         Streaming.stream_chat(messages, callback, teach_opts)
@@ -626,7 +903,10 @@ defmodule Backend.Classroom.Session do
     llm_opts =
       if state.source_material do
         topic = state.current_topic || state.goal
-        excerpt = Backend.Content.SourceMaterial.extract_relevant_excerpt(state.source_material, topic)
+
+        excerpt =
+          Backend.Content.SourceMaterial.extract_relevant_excerpt(state.source_material, topic)
+
         if excerpt != "", do: Keyword.put(llm_opts, :source_content, excerpt), else: llm_opts
       else
         llm_opts
@@ -687,7 +967,9 @@ defmodule Backend.Classroom.Session do
 
   defp get_lesson_topic(%{"modules" => modules}, mod_idx, lesson_idx) do
     case Enum.at(modules, mod_idx) do
-      nil -> nil
+      nil ->
+        nil
+
       mod ->
         case Enum.at(mod["lessons"] || [], lesson_idx) do
           nil -> nil
@@ -713,9 +995,10 @@ defmodule Backend.Classroom.Session do
         new_lesson_idx = lesson_idx + 1
         new_topic = get_lesson_topic(state.curriculum_plan, mod_idx, new_lesson_idx)
 
-        %{state |
-          current_lesson_index: new_lesson_idx,
-          current_topic: new_topic || state.current_topic
+        %{
+          state
+          | current_lesson_index: new_lesson_idx,
+            current_topic: new_topic || state.current_topic
         }
 
       # More modules
@@ -723,10 +1006,11 @@ defmodule Backend.Classroom.Session do
         new_mod_idx = mod_idx + 1
         new_topic = get_lesson_topic(state.curriculum_plan, new_mod_idx, 0)
 
-        %{state |
-          current_module_index: new_mod_idx,
-          current_lesson_index: 0,
-          current_topic: new_topic || state.current_topic
+        %{
+          state
+          | current_module_index: new_mod_idx,
+            current_lesson_index: 0,
+            current_topic: new_topic || state.current_topic
         }
 
       # Curriculum complete
@@ -831,6 +1115,53 @@ defmodule Backend.Classroom.Session do
   end
 
   # --- Helpers ---
+
+  defp snapshot_messages(session_id) do
+    case Store.load_session(session_id) do
+      nil ->
+        []
+
+      persisted ->
+        Enum.map(persisted.messages, fn m ->
+          %{
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            agent_name: m.agent_name,
+            agent_role: m.agent_role,
+            position: m.position,
+            timestamp:
+              if(m.inserted_at,
+                do: DateTime.to_iso8601(DateTime.from_naive!(m.inserted_at, "Etc/UTC")),
+                else: nil
+              )
+          }
+        end)
+    end
+  end
+
+  defp spawn_learner_eval(%__MODULE__{messages: []} = state), do: state
+
+  defp spawn_learner_eval(%__MODULE__{} = state) do
+    seq = state.learner_eval_seq + 1
+    pid = self()
+    learner_state = state.learner_state
+    recent = Enum.take(state.messages, -@learner_model_history_window)
+    topic = state.current_topic
+    profile = state.learner_profile
+
+    Task.start(fn ->
+      case LearnerModel.evaluate(learner_state, recent, topic, profile) do
+        {:ok, %LearnerState{} = updated} ->
+          send(pid, {:learner_state_updated, seq, updated})
+
+        {:error, _reason} ->
+          :ok
+      end
+    end)
+
+    %{state | learner_eval_seq: seq}
+  end
 
   defp broadcast(session_id, event, payload) do
     BackendWeb.Endpoint.broadcast("classroom:#{session_id}", event, payload)

@@ -51,6 +51,7 @@ defmodule Backend.LLM.ClientTest do
       ]
 
       result = ensure_json_instruction(messages)
+
       json_count =
         result
         |> Enum.filter(&(to_string(&1[:role]) == "system"))

@@ -5,7 +5,8 @@ defmodule BackendWeb.UploadController do
 
   alias Backend.Content.SourceMaterial
 
-  @max_size 20 * 1024 * 1024  # 20 MB
+  # 20 MB
+  @max_size 20 * 1024 * 1024
 
   def create(conn, %{"file" => %Plug.Upload{filename: filename, path: path}}) do
     if not String.ends_with?(String.downcase(filename), ".pdf") do
@@ -28,7 +29,9 @@ defmodule BackendWeb.UploadController do
             {:error, :no_text_content} ->
               conn
               |> put_status(422)
-              |> json(%{error: "Could not extract text from this PDF. It may be scanned or image-based."})
+              |> json(%{
+                error: "Could not extract text from this PDF. It may be scanned or image-based."
+              })
 
             {:error, _reason} ->
               conn

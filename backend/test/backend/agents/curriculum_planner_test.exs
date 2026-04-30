@@ -20,13 +20,14 @@ defmodule Backend.Agents.CurriculumPlannerTest do
     end
 
     test "handles map profile" do
-      result = CurriculumPlanner.generate_plan("Learn Go", %{
-        background: "backend engineer",
-        level: "intermediate",
-        known_concepts: ["REST APIs", "SQL"],
-        learning_preferences: %{style: "hands-on"},
-        constraints: %{}
-      })
+      result =
+        CurriculumPlanner.generate_plan("Learn Go", %{
+          background: "backend engineer",
+          level: "intermediate",
+          known_concepts: ["REST APIs", "SQL"],
+          learning_preferences: %{style: "hands-on"},
+          constraints: %{}
+        })
 
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end

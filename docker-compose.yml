@@ -3,7 +3,7 @@ services:
     image: postgres:17
     container_name: ai-school-postgres
     ports:
-      - "5432:5432"
+      - "55433:5432"
     environment:
       POSTGRES_DB: ai_school_dev
       POSTGRES_USER: ai_school

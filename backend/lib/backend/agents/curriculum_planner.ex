@@ -66,7 +66,11 @@ defmodule Backend.Agents.CurriculumPlanner do
 
     profile =
       if time_constraint do
-        Map.put(profile, :constraints, Map.merge(profile[:constraints] || %{}, %{total_time_minutes: time_constraint}))
+        Map.put(
+          profile,
+          :constraints,
+          Map.merge(profile[:constraints] || %{}, %{total_time_minutes: time_constraint})
+        )
       else
         profile
       end

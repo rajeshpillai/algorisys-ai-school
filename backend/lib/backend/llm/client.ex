@@ -197,7 +197,9 @@ defmodule Backend.LLM.Client do
           [
             if(override["provider"], do: {:provider, override["provider"]}),
             if(override["openai_api_key"], do: {:openai_api_key, override["openai_api_key"]}),
-            if(override["anthropic_api_key"], do: {:anthropic_api_key, override["anthropic_api_key"]}),
+            if(override["anthropic_api_key"],
+              do: {:anthropic_api_key, override["anthropic_api_key"]}
+            ),
             if(override["ollama_base_url"], do: {:ollama_base_url, override["ollama_base_url"]})
           ]
           |> Enum.reject(&is_nil/1)

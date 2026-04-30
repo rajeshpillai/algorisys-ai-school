@@ -47,6 +47,9 @@ defmodule Backend.Content.PdfParser do
   end
 
   defp tmp_file_path do
-    Path.join(System.tmp_dir!(), "pdf_upload_#{:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)}.pdf")
+    Path.join(
+      System.tmp_dir!(),
+      "pdf_upload_#{:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)}.pdf"
+    )
   end
 end

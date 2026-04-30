@@ -62,7 +62,9 @@ defmodule Backend.Classroom.Store do
 
   def set_learner_id(session_id, learner_id) do
     case Repo.get(Session, session_id) do
-      nil -> {:error, :not_found}
+      nil ->
+        {:error, :not_found}
+
       session ->
         session
         |> Session.changeset(%{learner_id: learner_id})
@@ -72,7 +74,9 @@ defmodule Backend.Classroom.Store do
 
   def set_source_material(session_id, source_material_id) do
     case Repo.get(Session, session_id) do
-      nil -> {:error, :not_found}
+      nil ->
+        {:error, :not_found}
+
       session ->
         session
         |> Session.changeset(%{source_material_id: source_material_id})
@@ -111,9 +115,10 @@ defmodule Backend.Classroom.Store do
 
   defp next_position(session_id) do
     query =
-      from m in Message,
+      from(m in Message,
         where: m.session_id == ^session_id,
         select: coalesce(max(m.position), 0)
+      )
 
     Repo.one(query) + 1
   end

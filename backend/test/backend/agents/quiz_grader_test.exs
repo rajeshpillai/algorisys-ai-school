@@ -5,7 +5,17 @@ defmodule Backend.Agents.QuizGraderTest do
 
   describe "grade/3 single choice" do
     test "grades correct answer" do
-      questions = [%{"id" => "q1", "type" => "single", "question" => "1+1?", "options" => ["1", "2", "3"], "answer" => 1, "points" => 1}]
+      questions = [
+        %{
+          "id" => "q1",
+          "type" => "single",
+          "question" => "1+1?",
+          "options" => ["1", "2", "3"],
+          "answer" => 1,
+          "points" => 1
+        }
+      ]
+
       answers = [%{"question_id" => "q1", "answer" => 1}]
 
       {:ok, result} = QuizGrader.grade(questions, answers)
@@ -15,7 +25,17 @@ defmodule Backend.Agents.QuizGraderTest do
     end
 
     test "grades incorrect answer" do
-      questions = [%{"id" => "q1", "type" => "single", "question" => "1+1?", "options" => ["1", "2", "3"], "answer" => 1, "points" => 1}]
+      questions = [
+        %{
+          "id" => "q1",
+          "type" => "single",
+          "question" => "1+1?",
+          "options" => ["1", "2", "3"],
+          "answer" => 1,
+          "points" => 1
+        }
+      ]
+
       answers = [%{"question_id" => "q1", "answer" => 0}]
 
       {:ok, result} = QuizGrader.grade(questions, answers)
@@ -26,9 +46,24 @@ defmodule Backend.Agents.QuizGraderTest do
 
     test "grades multiple questions" do
       questions = [
-        %{"id" => "q1", "type" => "single", "question" => "1+1?", "options" => ["1", "2"], "answer" => 1, "points" => 1},
-        %{"id" => "q2", "type" => "single", "question" => "2+2?", "options" => ["3", "4"], "answer" => 1, "points" => 2}
+        %{
+          "id" => "q1",
+          "type" => "single",
+          "question" => "1+1?",
+          "options" => ["1", "2"],
+          "answer" => 1,
+          "points" => 1
+        },
+        %{
+          "id" => "q2",
+          "type" => "single",
+          "question" => "2+2?",
+          "options" => ["3", "4"],
+          "answer" => 1,
+          "points" => 2
+        }
       ]
+
       answers = [
         %{"question_id" => "q1", "answer" => 1},
         %{"question_id" => "q2", "answer" => 0}
@@ -43,7 +78,17 @@ defmodule Backend.Agents.QuizGraderTest do
 
   describe "grade/3 multiple choice" do
     test "grades correct multiple selection" do
-      questions = [%{"id" => "q1", "type" => "multiple", "question" => "Select even numbers", "options" => ["1", "2", "3", "4"], "answer" => [1, 3], "points" => 2}]
+      questions = [
+        %{
+          "id" => "q1",
+          "type" => "multiple",
+          "question" => "Select even numbers",
+          "options" => ["1", "2", "3", "4"],
+          "answer" => [1, 3],
+          "points" => 2
+        }
+      ]
+
       answers = [%{"question_id" => "q1", "answer" => [1, 3]}]
 
       {:ok, result} = QuizGrader.grade(questions, answers)
@@ -52,7 +97,17 @@ defmodule Backend.Agents.QuizGraderTest do
     end
 
     test "grades incorrect multiple selection" do
-      questions = [%{"id" => "q1", "type" => "multiple", "question" => "Select even", "options" => ["1", "2", "3", "4"], "answer" => [1, 3], "points" => 2}]
+      questions = [
+        %{
+          "id" => "q1",
+          "type" => "multiple",
+          "question" => "Select even",
+          "options" => ["1", "2", "3", "4"],
+          "answer" => [1, 3],
+          "points" => 2
+        }
+      ]
+
       answers = [%{"question_id" => "q1", "answer" => [1]}]
 
       {:ok, result} = QuizGrader.grade(questions, answers)
@@ -62,7 +117,10 @@ defmodule Backend.Agents.QuizGraderTest do
 
   describe "grade/3 short answer" do
     test "gives zero for empty answer" do
-      questions = [%{"id" => "q1", "type" => "short_answer", "question" => "What is Elixir?", "points" => 3}]
+      questions = [
+        %{"id" => "q1", "type" => "short_answer", "question" => "What is Elixir?", "points" => 3}
+      ]
+
       answers = [%{"question_id" => "q1", "answer" => ""}]
 
       {:ok, result} = QuizGrader.grade(questions, answers)
@@ -73,7 +131,17 @@ defmodule Backend.Agents.QuizGraderTest do
 
   describe "grade/3 missing answers" do
     test "handles missing answer for question" do
-      questions = [%{"id" => "q1", "type" => "single", "question" => "1+1?", "options" => ["1", "2"], "answer" => 1, "points" => 1}]
+      questions = [
+        %{
+          "id" => "q1",
+          "type" => "single",
+          "question" => "1+1?",
+          "options" => ["1", "2"],
+          "answer" => 1,
+          "points" => 1
+        }
+      ]
+
       answers = []
 
       {:ok, result} = QuizGrader.grade(questions, answers)

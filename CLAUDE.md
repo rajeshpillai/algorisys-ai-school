@@ -15,11 +15,11 @@ Multi-agent AI classroom platform. Elixir/Phoenix backend + SolidJS frontend. Us
 
 ```
 ai-school/
-├── backend/             # Elixir Phoenix app (port 4000)
+├── backend/             # Elixir Phoenix app (port 4001)
 │   └── lib/
 │       ├── backend/     # Business logic: agents/, classroom/, content/, llm/
 │       └── backend_web/ # Controllers, channels, router
-├── frontend/            # SolidJS app (port 5173, proxies /api + /socket to 4000)
+├── frontend/            # SolidJS app (port 5173, proxies /api + /socket to 4001)
 │   └── src/
 │       ├── components/  # classroom/, content/, landing/, layout/, playground/, common/
 │       ├── context/     # theme-context, classroom-context
@@ -40,7 +40,7 @@ docker compose down                           # stop postgres
 # Backend
 cd backend && mix deps.get                    # install deps
 cd backend && mix ecto.setup                  # create + migrate db
-cd backend && mix phx.server                  # start server (port 4000)
+cd backend && mix phx.server                  # start server (port 4001)
 cd backend && mix test                        # run tests
 cd backend && mix format                      # format code
 cd backend && mix precommit                   # compile (warnings-as-errors) + format + test
@@ -87,7 +87,7 @@ Set in `backend/.env`:
 - **Backend tests**: `cd backend && mix test` — use ExUnit with async where possible
 - **Fast tests only** (skip LLM calls): `cd backend && mix test --exclude llm_integration`
 - **Agent tests** are tagged `@moduletag :llm_integration` — they hit real LLM APIs and are slow (~200s)
-- **E2E tests** (Playwright): `cd e2e && npm test` — requires frontend (port 5173) and backend (port 4000) running
+- **E2E tests** (Playwright): `cd e2e && npm test` — requires frontend (port 5173) and backend (port 4001) running
 - **E2E headed mode**: `cd e2e && npm run test:headed` — runs with visible browser
 - **Frontend tests**: Component and integration tests for UI behavior
 - **No code merges without tests**: Every PR must include tests for the changes it introduces

@@ -24,6 +24,7 @@ export function joinClassroom(
     onInitError?: (data: any) => void;
     onRoundtableStart?: (data: any) => void;
     onRoundtableDone?: () => void;
+    onSnapshot?: (snapshot: any) => void;
   }
 ): Channel {
   const s = getSocket();
@@ -52,7 +53,10 @@ export function joinClassroom(
   }
 
   channel.join()
-    .receive('ok', () => console.log('Joined classroom:', sessionId))
+    .receive('ok', (snapshot: any) => {
+      console.log('Joined classroom:', sessionId);
+      if (callbacks.onSnapshot) callbacks.onSnapshot(snapshot);
+    })
     .receive('error', (resp) => console.error('Failed to join:', resp));
 
   return channel;

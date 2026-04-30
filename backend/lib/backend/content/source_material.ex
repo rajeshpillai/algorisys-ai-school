@@ -41,7 +41,8 @@ defmodule Backend.Content.SourceMaterial do
   Truncates to first ~2000 chars as a simple summary.
   Can be upgraded to LLM-based summarization later.
   """
-  def get_summary(%Schema{summary: summary}) when is_binary(summary) and summary != "", do: summary
+  def get_summary(%Schema{summary: summary}) when is_binary(summary) and summary != "",
+    do: summary
 
   def get_summary(%Schema{content: content}) do
     content

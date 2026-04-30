@@ -430,7 +430,7 @@ Content patterns:
 
 ## Verification
 
-1. `mix phx.server` starts backend (port 4000), `npm run dev` starts frontend (port 5173)
+1. `mix phx.server` starts backend (port 4001), `npm run dev` starts frontend (port 5173)
 2. Frontend proxies `/api/*` to backend
 3. Landing page lets user type a learning goal
 4. Starting a session calls role synthesis → returns agent team

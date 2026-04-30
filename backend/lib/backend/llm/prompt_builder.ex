@@ -100,6 +100,22 @@ defmodule Backend.LLM.PromptBuilder do
   end
 
   @doc """
+  Build messages for the learner-model evaluator.
+
+  Wraps the structured input (current state + recent interactions + topic/scene/profile)
+  as a single JSON user message after the learner-model system prompt.
+  """
+  @spec build_learner_model_messages(String.t(), map()) :: list(map())
+  def build_learner_model_messages(learner_model_prompt, input_data) do
+    user_content = Jason.encode!(input_data, pretty: true)
+
+    [
+      %{role: "system", content: learner_model_prompt},
+      %{role: "user", content: user_content}
+    ]
+  end
+
+  @doc """
   Build messages for the scene engine agent.
   """
   @spec build_scene_engine_messages(String.t(), map()) :: list(map())
@@ -108,6 +124,19 @@ defmodule Backend.LLM.PromptBuilder do
 
     [
       %{role: "system", content: scene_engine_prompt},
+      %{role: "user", content: user_content}
+    ]
+  end
+
+  @doc """
+  Build messages for the quiz designer agent.
+  """
+  @spec build_quiz_designer_messages(String.t(), map()) :: list(map())
+  def build_quiz_designer_messages(quiz_designer_prompt, input_data) do
+    user_content = Jason.encode!(input_data, pretty: true)
+
+    [
+      %{role: "system", content: quiz_designer_prompt},
       %{role: "user", content: user_content}
     ]
   end
@@ -164,7 +193,14 @@ defmodule Backend.LLM.PromptBuilder do
         source_content
       )
       when is_binary(source_content) and source_content != "" do
-    messages = build_teaching_messages(teaching_prompt, role_spec, scene_spec, conversation_history, learner_state)
+    messages =
+      build_teaching_messages(
+        teaching_prompt,
+        role_spec,
+        scene_spec,
+        conversation_history,
+        learner_state
+      )
 
     source_msg = %{
       role: "system",
@@ -190,9 +226,24 @@ defmodule Backend.LLM.PromptBuilder do
   Injects the roundtable transcript as prior assistant messages tagged with agent names,
   then prompts the current agent to contribute.
   """
-  def build_roundtable_messages(teaching_prompt, role_spec, scene_spec, roundtable_transcript, learner_state, source_content \\ "") do
+  def build_roundtable_messages(
+        teaching_prompt,
+        role_spec,
+        scene_spec,
+        roundtable_transcript,
+        learner_state,
+        source_content \\ ""
+      ) do
     # Build base system prompt (no conversation history — transcript replaces it)
-    messages = build_teaching_messages(teaching_prompt, role_spec, scene_spec, [], learner_state, source_content)
+    messages =
+      build_teaching_messages(
+        teaching_prompt,
+        role_spec,
+        scene_spec,
+        [],
+        learner_state,
+        source_content
+      )
 
     # Convert prior agent turns into conversation history
     transcript_messages =
@@ -202,7 +253,8 @@ defmodule Backend.LLM.PromptBuilder do
 
     prompt_msg = %{
       role: "user",
-      content: "It's your turn in the roundtable discussion. Respond to what has been said and share your perspective."
+      content:
+        "It's your turn in the roundtable discussion. Respond to what has been said and share your perspective."
     }
 
     messages ++ transcript_messages ++ [prompt_msg]

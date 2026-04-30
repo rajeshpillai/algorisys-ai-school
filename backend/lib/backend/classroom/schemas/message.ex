@@ -3,12 +3,12 @@ defmodule Backend.Classroom.Schemas.Message do
   import Ecto.Changeset
 
   schema "messages" do
-    belongs_to :session, Backend.Classroom.Schemas.Session, type: :string
-    field :role, :string
-    field :content, :string
-    field :agent_name, :string
-    field :agent_role, :string
-    field :position, :integer
+    belongs_to(:session, Backend.Classroom.Schemas.Session, type: :string)
+    field(:role, :string)
+    field(:content, :string)
+    field(:agent_name, :string)
+    field(:agent_role, :string)
+    field(:position, :integer)
 
     timestamps(updated_at: false)
   end

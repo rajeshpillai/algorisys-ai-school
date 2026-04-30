@@ -68,8 +68,52 @@ export const ClassroomProvider: ParentComponent = (props) => {
     setProgress(null);
     setAdvancePrompt(null);
     setInitError(null);
+    setActiveQuiz(null);
+    setQuizResult(null);
 
     channel = joinClassroom(id, {
+      onSnapshot: (snapshot: any) => {
+        if (!snapshot) return;
+
+        if (Array.isArray(snapshot.messages) && snapshot.messages.length > 0) {
+          const hydrated: AgentMessage[] = snapshot.messages.map((m: any) => ({
+            id: m.id ? String(m.id) : crypto.randomUUID(),
+            agent_name:
+              m.agent_name ||
+              (m.role === 'user' ? 'You' : m.role === 'system' ? 'System' : 'Agent'),
+            agent_role:
+              m.agent_role || (m.role === 'user' ? 'learner' : m.role === 'system' ? 'system' : ''),
+            content: m.content || '',
+            timestamp: m.timestamp ? Date.parse(m.timestamp) || Date.now() : Date.now(),
+          }));
+          setMessages(hydrated);
+
+          // Restore the latest in-stream quiz from the most recent assistant message, if any.
+          for (let i = hydrated.length - 1; i >= 0; i--) {
+            if (hydrated[i].agent_role !== 'learner' && hydrated[i].agent_role !== 'system') {
+              const quiz = parseQuizFromMessage(hydrated[i].content);
+              if (quiz) {
+                setActiveQuiz(quiz);
+              }
+              break;
+            }
+          }
+        }
+
+        if (Array.isArray(snapshot.agents) && snapshot.agents.length > 0) {
+          setAgents(snapshot.agents);
+        }
+
+        if (snapshot.curriculum) {
+          setProgress({
+            total_lessons: snapshot.curriculum.total_lessons || 0,
+            completed_lessons: snapshot.curriculum.completed_lessons || 0,
+            current_topic: snapshot.current_topic || null,
+            current_module_index: snapshot.curriculum.current_module_index || 0,
+            current_lesson_index: snapshot.curriculum.current_lesson_index || 0,
+          });
+        }
+      },
       onAgentMessage: (msg: any) => {
         const agentMsg: AgentMessage = {
           id: msg.id || crypto.randomUUID(),

@@ -48,13 +48,22 @@ defmodule Backend.Classroom.SessionTest do
 
       # Create and populate a session in DB directly
       Store.create_session(id, "Learn Go", "beginner")
+
       Store.save_state(%{
-        id: id, state: :waiting, agents: [%{"name" => "Go Coach"}],
+        id: id,
+        state: :waiting,
+        agents: [%{"name" => "Go Coach"}],
         learner_state: %Backend.Classroom.LearnerState{understanding_score: 70},
-        current_scene: "lecture", current_scene_spec: nil, current_topic: "goroutines",
-        current_agent: "Go Coach", orchestrator_decision: nil, curriculum_plan: nil,
-        current_module_index: 1, current_lesson_index: 2
+        current_scene: "lecture",
+        current_scene_spec: nil,
+        current_topic: "goroutines",
+        current_agent: "Go Coach",
+        orchestrator_decision: nil,
+        curriculum_plan: nil,
+        current_module_index: 1,
+        current_lesson_index: 2
       })
+
       Store.append_message(id, "user", "What are goroutines?")
 
       # Start GenServer — should resume
@@ -90,6 +99,64 @@ defmodule Backend.Classroom.SessionTest do
     end
   end
 
+  describe "snapshot/1" do
+    test "returns error for nonexistent session" do
+      assert {:error, :not_found} = Session.snapshot("nonexistent-session")
+    end
+
+    test "returns an empty snapshot for a fresh session" do
+      id = unique_id()
+      _pid = start_session(id, "Learn Haskell")
+
+      assert {:ok, snap} = Session.snapshot(id)
+      assert snap.id == id
+      assert snap.goal == "Learn Haskell"
+      assert snap.messages == []
+      assert snap.agents == []
+      assert snap.curriculum.total_lessons == 0
+      assert snap.curriculum.completed_lessons == 0
+      assert is_map(snap.learner_state)
+    end
+
+    test "returns full message history with agent metadata after rebroadcast" do
+      id = unique_id()
+      Store.create_session(id, "Learn Go", nil)
+
+      Store.save_state(%{
+        id: id,
+        state: :waiting,
+        agents: [%{"name" => "Go Coach", "type" => "teaching"}],
+        learner_state: %Backend.Classroom.LearnerState{understanding_score: 60},
+        current_scene: "lecture",
+        current_scene_spec: nil,
+        current_topic: "goroutines",
+        current_agent: "Go Coach",
+        orchestrator_decision: nil,
+        curriculum_plan: nil,
+        current_module_index: 0,
+        current_lesson_index: 0
+      })
+
+      Store.append_message(id, "user", "what are goroutines?")
+      Store.append_message(id, "assistant", "lightweight threads", "Go Coach", "teaching")
+
+      {:ok, _pid} = SessionSupervisor.start_session(id, "Learn Go", nil)
+
+      assert {:ok, snap} = Session.snapshot(id)
+      assert snap.current_topic == "goroutines"
+      assert length(snap.messages) == 2
+
+      [first, second] = snap.messages
+      assert first.role == "user"
+      assert first.content == "what are goroutines?"
+      assert second.role == "assistant"
+      assert second.agent_name == "Go Coach"
+      assert second.agent_role == "teaching"
+      assert hd(snap.agents)["name"] == "Go Coach"
+      assert snap.learner_state.understanding_score == 60
+    end
+  end
+
   describe "handle_info :pipeline_started" do
     test "updates state with agents, curriculum, and begins teaching" do
       id = unique_id()
@@ -99,15 +166,21 @@ defmodule Backend.Classroom.SessionTest do
         %{"name" => "Math Teacher", "type" => "teaching"},
         %{"name" => "Quiz Master", "type" => "assessment"}
       ]
+
       decision = %{
         "next_action" => %{"agent" => "Math Teacher", "scene" => "lecture"},
         "state_updates" => %{"focus_topic" => "Limits"}
       }
+
       scene_spec = %{"scene" => %{"type" => "lecture"}}
       selected_agent = %{"name" => "Math Teacher", "type" => "teaching"}
+
       curriculum = %{
         "modules" => [
-          %{"title" => "Basics", "lessons" => [%{"title" => "Limits"}, %{"title" => "Derivatives"}]}
+          %{
+            "title" => "Basics",
+            "lessons" => [%{"title" => "Limits"}, %{"title" => "Derivatives"}]
+          }
         ]
       }
 
@@ -133,21 +206,26 @@ defmodule Backend.Classroom.SessionTest do
       # Set up state as if pipeline ran
       curriculum = %{
         "modules" => [
-          %{"title" => "Mechanics", "lessons" => [
-            %{"title" => "Newton's First Law"},
-            %{"title" => "Newton's Second Law"}
-          ]}
+          %{
+            "title" => "Mechanics",
+            "lessons" => [
+              %{"title" => "Newton's First Law"},
+              %{"title" => "Newton's Second Law"}
+            ]
+          }
         ]
       }
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "Physics Prof", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Physics Prof", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Newton's First Law"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Physics Prof", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Physics Prof", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Physics Prof", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Newton's First Law"}
+         }, %{"scene" => %{"type" => "lecture"}},
+         %{"name" => "Physics Prof", "type" => "teaching"}, curriculum}
+      )
+
       Process.sleep(50)
 
       # Simulate teaching completion
@@ -168,14 +246,16 @@ defmodule Backend.Classroom.SessionTest do
       id = unique_id()
       pid = start_session(id, "Learn history")
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "Historian", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Historian", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Ancient Rome"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Historian", "type" => "teaching"},
-        nil
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Historian", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Historian", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Ancient Rome"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "Historian", "type" => "teaching"},
+         nil}
+      )
+
       Process.sleep(50)
 
       send(pid, {:teaching_done, "Historian", "teaching", "Rome was founded in 753 BC..."})
@@ -196,14 +276,16 @@ defmodule Backend.Classroom.SessionTest do
       pid = start_session(id, "Learn Ruby")
 
       # Put session in waiting state
-      send(pid, {:pipeline_started,
-        [%{"name" => "Ruby Guide", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Ruby Guide", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Blocks"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Ruby Guide", "type" => "teaching"},
-        nil
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Ruby Guide", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Ruby Guide", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Blocks"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "Ruby Guide", "type" => "teaching"},
+         nil}
+      )
+
       Process.sleep(50)
       send(pid, {:teaching_done, "Ruby Guide", "teaching", "Blocks are closures..."})
       Process.sleep(50)
@@ -236,14 +318,16 @@ defmodule Backend.Classroom.SessionTest do
       pid = start_session(id, "Learn CSS")
 
       # Get to waiting state
-      send(pid, {:pipeline_started,
-        [%{"name" => "CSS Expert", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "CSS Expert", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Flexbox"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "CSS Expert", "type" => "teaching"},
-        nil
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "CSS Expert", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "CSS Expert", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Flexbox"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "CSS Expert", "type" => "teaching"},
+         nil}
+      )
+
       Process.sleep(50)
       send(pid, {:teaching_done, "CSS Expert", "teaching", "Flexbox is a layout model..."})
       Process.sleep(50)
@@ -264,14 +348,16 @@ defmodule Backend.Classroom.SessionTest do
       pid = start_session(id, "Learn SQL")
 
       # Put in teaching state
-      send(pid, {:pipeline_started,
-        [%{"name" => "DB Expert", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "DB Expert", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "JOINs"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "DB Expert", "type" => "teaching"},
-        nil
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "DB Expert", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "DB Expert", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "JOINs"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "DB Expert", "type" => "teaching"},
+         nil}
+      )
+
       Process.sleep(50)
       assert get_raw_state(pid).state == :teaching
 
@@ -299,14 +385,16 @@ defmodule Backend.Classroom.SessionTest do
       BackendWeb.Endpoint.subscribe("classroom:#{id}")
 
       # Put in teaching state via pipeline_started (still no user messages)
-      send(pid, {:pipeline_started,
-        [%{"name" => "Kotlin Guide", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Kotlin Guide", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Coroutines"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Kotlin Guide", "type" => "teaching"},
-        nil
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Kotlin Guide", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Kotlin Guide", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Coroutines"}
+         }, %{"scene" => %{"type" => "lecture"}},
+         %{"name" => "Kotlin Guide", "type" => "teaching"}, nil}
+      )
+
       Process.sleep(50)
 
       # Trigger teaching error — no user messages, so this is an init error
@@ -317,6 +405,7 @@ defmodule Backend.Classroom.SessionTest do
         event: "init_error",
         payload: %{reason: reason}
       }
+
       assert reason =~ "Authentication failed"
     end
 
@@ -327,14 +416,16 @@ defmodule Backend.Classroom.SessionTest do
       BackendWeb.Endpoint.subscribe("classroom:#{id}")
 
       # Set up session with pipeline
-      send(pid, {:pipeline_started,
-        [%{"name" => "Swift Dev", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Swift Dev", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Optionals"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Swift Dev", "type" => "teaching"},
-        nil
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Swift Dev", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Swift Dev", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Optionals"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "Swift Dev", "type" => "teaching"},
+         nil}
+      )
+
       Process.sleep(50)
 
       # Complete first teaching so state becomes :waiting
@@ -368,6 +459,7 @@ defmodule Backend.Classroom.SessionTest do
         event: "init_error",
         payload: %{reason: reason}
       }
+
       assert reason =~ "Could not reach"
     end
   end
@@ -438,23 +530,28 @@ defmodule Backend.Classroom.SessionTest do
 
       curriculum = %{
         "modules" => [
-          %{"title" => "Algebra", "lessons" => [
-            %{"title" => "Variables"},
-            %{"title" => "Equations"},
-            %{"title" => "Inequalities"}
-          ]}
+          %{
+            "title" => "Algebra",
+            "lessons" => [
+              %{"title" => "Variables"},
+              %{"title" => "Equations"},
+              %{"title" => "Inequalities"}
+            ]
+          }
         ]
       }
 
       # Start pipeline
-      send(pid, {:pipeline_started,
-        [%{"name" => "Math Prof", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Math Prof", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Variables"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Math Prof", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Math Prof", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Math Prof", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Variables"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "Math Prof", "type" => "teaching"},
+         curriculum}
+      )
+
       Process.sleep(50)
 
       # Complete lesson 1
@@ -465,12 +562,15 @@ defmodule Backend.Classroom.SessionTest do
       assert state.current_topic == "Equations"
 
       # Simulate auto-advance → teaching → done for lesson 2
-      send(pid, {:next_turn_ready,
-        %{"next_action" => %{"agent" => "Math Prof", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Equations"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Math Prof", "type" => "teaching"}
-      })
+      send(
+        pid,
+        {:next_turn_ready,
+         %{
+           "next_action" => %{"agent" => "Math Prof", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Equations"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "Math Prof", "type" => "teaching"}}
+      )
+
       Process.sleep(50)
       send(pid, {:teaching_done, "Math Prof", "teaching", "Equations lesson done"})
       Process.sleep(50)
@@ -491,14 +591,16 @@ defmodule Backend.Classroom.SessionTest do
         ]
       }
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "Sci Teacher", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Sci Teacher", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Forces"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Sci Teacher", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Sci Teacher", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Sci Teacher", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Forces"}
+         }, %{"scene" => %{"type" => "lecture"}},
+         %{"name" => "Sci Teacher", "type" => "teaching"}, curriculum}
+      )
+
       Process.sleep(50)
 
       # Complete only lesson in module 1
@@ -517,19 +619,24 @@ defmodule Backend.Classroom.SessionTest do
 
       curriculum = %{
         "modules" => [
-          %{"title" => "Greetings", "lessons" => [%{"title" => "Hello"}, %{"title" => "Goodbye"}]},
+          %{
+            "title" => "Greetings",
+            "lessons" => [%{"title" => "Hello"}, %{"title" => "Goodbye"}]
+          },
           %{"title" => "Numbers", "lessons" => [%{"title" => "1-10"}, %{"title" => "11-100"}]}
         ]
       }
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "Language Teacher", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Language Teacher", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Hello"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Language Teacher", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Language Teacher", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Language Teacher", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Hello"}
+         }, %{"scene" => %{"type" => "lecture"}},
+         %{"name" => "Language Teacher", "type" => "teaching"}, curriculum}
+      )
+
       Process.sleep(50)
 
       result = Session.get_state(id)
@@ -552,21 +659,26 @@ defmodule Backend.Classroom.SessionTest do
 
       curriculum = %{
         "modules" => [
-          %{"title" => "Layout", "lessons" => [
-            %{"title" => "Flexbox"},
-            %{"title" => "Grid"}
-          ]}
+          %{
+            "title" => "Layout",
+            "lessons" => [
+              %{"title" => "Flexbox"},
+              %{"title" => "Grid"}
+            ]
+          }
         ]
       }
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "CSS Expert", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "CSS Expert", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Flexbox"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "CSS Expert", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "CSS Expert", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "CSS Expert", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Flexbox"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "CSS Expert", "type" => "teaching"},
+         curriculum}
+      )
+
       Process.sleep(50)
 
       send(pid, {:teaching_done, "CSS Expert", "teaching", "Flexbox explained..."})
@@ -581,21 +693,26 @@ defmodule Backend.Classroom.SessionTest do
 
       curriculum = %{
         "modules" => [
-          %{"title" => "Basics", "lessons" => [
-            %{"title" => "Variables"},
-            %{"title" => "Functions"}
-          ]}
+          %{
+            "title" => "Basics",
+            "lessons" => [
+              %{"title" => "Variables"},
+              %{"title" => "Functions"}
+            ]
+          }
         ]
       }
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "JS Coach", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "JS Coach", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Variables"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "JS Coach", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "JS Coach", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "JS Coach", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Variables"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "JS Coach", "type" => "teaching"},
+         curriculum}
+      )
+
       Process.sleep(50)
 
       send(pid, {:teaching_done, "JS Coach", "teaching", "Variables explained..."})
@@ -615,21 +732,26 @@ defmodule Backend.Classroom.SessionTest do
 
       curriculum = %{
         "modules" => [
-          %{"title" => "Queries", "lessons" => [
-            %{"title" => "SELECT"},
-            %{"title" => "WHERE"}
-          ]}
+          %{
+            "title" => "Queries",
+            "lessons" => [
+              %{"title" => "SELECT"},
+              %{"title" => "WHERE"}
+            ]
+          }
         ]
       }
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "DB Expert", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "DB Expert", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "SELECT"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "DB Expert", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "DB Expert", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "DB Expert", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "SELECT"}
+         }, %{"scene" => %{"type" => "lecture"}}, %{"name" => "DB Expert", "type" => "teaching"},
+         curriculum}
+      )
+
       Process.sleep(50)
 
       send(pid, {:teaching_done, "DB Expert", "teaching", "SELECT explained..."})
@@ -651,21 +773,26 @@ defmodule Backend.Classroom.SessionTest do
 
       curriculum = %{
         "modules" => [
-          %{"title" => "Basics", "lessons" => [
-            %{"title" => "Variables"},
-            %{"title" => "Functions"}
-          ]}
+          %{
+            "title" => "Basics",
+            "lessons" => [
+              %{"title" => "Variables"},
+              %{"title" => "Functions"}
+            ]
+          }
         ]
       }
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "Kotlin Coach", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "Kotlin Coach", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Variables"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "Kotlin Coach", "type" => "teaching"},
-        curriculum
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "Kotlin Coach", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "Kotlin Coach", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Variables"}
+         }, %{"scene" => %{"type" => "lecture"}},
+         %{"name" => "Kotlin Coach", "type" => "teaching"}, curriculum}
+      )
+
       Process.sleep(50)
 
       send(pid, {:teaching_done, "Kotlin Coach", "teaching", "Variables explained..."})
@@ -690,14 +817,16 @@ defmodule Backend.Classroom.SessionTest do
       id = unique_id()
       pid = start_session(id, "Learn Docker")
 
-      send(pid, {:pipeline_started,
-        [%{"name" => "DevOps Guide", "type" => "teaching"}],
-        %{"next_action" => %{"agent" => "DevOps Guide", "scene" => "lecture"},
-          "state_updates" => %{"focus_topic" => "Containers"}},
-        %{"scene" => %{"type" => "lecture"}},
-        %{"name" => "DevOps Guide", "type" => "teaching"},
-        nil
-      })
+      send(
+        pid,
+        {:pipeline_started, [%{"name" => "DevOps Guide", "type" => "teaching"}],
+         %{
+           "next_action" => %{"agent" => "DevOps Guide", "scene" => "lecture"},
+           "state_updates" => %{"focus_topic" => "Containers"}
+         }, %{"scene" => %{"type" => "lecture"}},
+         %{"name" => "DevOps Guide", "type" => "teaching"}, nil}
+      )
+
       Process.sleep(50)
 
       send(pid, {:teaching_done, "DevOps Guide", "teaching", "Containers explained..."})

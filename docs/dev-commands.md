@@ -79,7 +79,7 @@ cd backend && mix ecto.migrate
 ```bash
 cd backend && mix phx.server
 ```
-Runs on http://localhost:4000. Requires Postgres to be running.
+Runs on http://localhost:4001. Requires Postgres to be running.
 
 ### Start with interactive shell
 ```bash
@@ -116,7 +116,7 @@ cd frontend && npm install
 ```bash
 cd frontend && npm run dev
 ```
-Runs on http://localhost:5173. Proxies `/api/*` and `/socket/*` to the Phoenix backend on port 4000.
+Runs on http://localhost:5173. Proxies `/api/*` and `/socket/*` to the Phoenix backend on port 4001.
 
 ### Build for production
 ```bash
@@ -142,7 +142,7 @@ cd frontend && npm run dev
 
 ### Health check
 ```bash
-curl http://localhost:4000/api/health
+curl http://localhost:4001/api/health
 ```
 Should return `{"status":"ok"}`.
 
@@ -169,8 +169,8 @@ Wait and check logs: `docker logs ai-school-postgres`. Look for `listening on IP
 # Check if container is running
 docker ps --filter name=ai-school-postgres
 
-# Check if port 5432 is in use by something else
-lsof -i :5432
+# Check if port 55433 is in use by something else
+lsof -i :55433
 ```
 
 ### Alpine image issues
@@ -184,12 +184,12 @@ Then rerun `mix ecto.setup`.
 
 ### Port already in use
 ```bash
-# Find what's using port 4000 (Phoenix)
-lsof -i :4000
+# Find what's using port 4001 (Phoenix)
+lsof -i :4001
 
 # Find what's using port 5173 (Vite)
 lsof -i :5173
 
-# Find what's using port 5432 (Postgres)
-lsof -i :5432
+# Find what's using port 55433 (Postgres host port)
+lsof -i :55433
 ```

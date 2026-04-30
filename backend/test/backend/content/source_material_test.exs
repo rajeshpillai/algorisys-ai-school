@@ -19,7 +19,8 @@ defmodule Backend.Content.SourceMaterialTest do
   describe "extract_relevant_excerpt/2" do
     test "returns relevant paragraphs based on topic" do
       source = %Schema{
-        content: "Binary search is an efficient algorithm for finding an item in a sorted list by repeatedly dividing the search interval in half.\n\nLinked lists are dynamic data structures where each element points to the next element in the sequence.\n\nBinary trees use nodes with left and right children to organize data hierarchically for fast lookup.\n\nHash maps provide O(1) average access time by computing an index from the key using a hash function."
+        content:
+          "Binary search is an efficient algorithm for finding an item in a sorted list by repeatedly dividing the search interval in half.\n\nLinked lists are dynamic data structures where each element points to the next element in the sequence.\n\nBinary trees use nodes with left and right children to organize data hierarchically for fast lookup.\n\nHash maps provide O(1) average access time by computing an index from the key using a hash function."
       }
 
       excerpt = SourceMaterial.extract_relevant_excerpt(source, "binary search trees")
