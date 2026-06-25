@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from '@solidjs/router';
-import { onMount, onCleanup, createEffect, Show } from 'solid-js';
+import { onMount, onCleanup, createEffect, createSignal, Show } from 'solid-js';
 import TopBar from '../components/layout/top-bar';
 import { ClassroomProvider, useClassroom } from '../context/classroom-context';
 import ChatStream from '../components/classroom/chat-stream';
@@ -14,6 +14,22 @@ function ClassroomContent() {
   const params = useParams<{ sessionId: string }>();
   const classroom = useClassroom();
   const navigate = useNavigate();
+
+  const [copied, setCopied] = createSignal(false);
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const copySession = async () => {
+    try {
+      await navigator.clipboard.writeText(params.sessionId);
+    } catch {
+      // Clipboard may be unavailable (e.g. insecure context) — ignore
+    }
+    setCopied(true);
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => setCopied(false), 1500);
+  };
+
+  onCleanup(() => clearTimeout(copyTimer));
 
   onMount(async () => {
     // Try to resume the GenServer if it's not running (e.g. coming from history)
@@ -49,7 +65,24 @@ function ClassroomContent() {
           onTogglePause={() => classroom.togglePause()}
         />
         <div class="classroom-header">
-          <span class="classroom-session-label">Session: {params.sessionId}</span>
+          <div class="classroom-header-title">
+            <span class="classroom-header-eyebrow">
+              <span class="classroom-header-dot" aria-hidden="true" />
+              Now teaching
+            </span>
+            <span class="classroom-topic">
+              {classroom.progress()?.current_topic || classroom.roundtableTopic() || 'Classroom session'}
+            </span>
+          </div>
+          <button
+            class="classroom-session-chip"
+            classList={{ 'classroom-session-chip--copied': copied() }}
+            onClick={copySession}
+            title="Copy full session ID"
+          >
+            <span class="classroom-session-chip-id">{params.sessionId}</span>
+            <span class="classroom-session-chip-action">{copied() ? 'Copied ✓' : 'Copy'}</span>
+          </button>
         </div>
         <div class="classroom-layout">
           <div class="classroom-main">
@@ -107,15 +140,106 @@ function ClassroomContent() {
         }
 
         .classroom-header {
-          padding: 0.5rem 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 0.6rem 1.25rem;
           border-bottom: 1px solid var(--border-color);
           background: var(--bg-secondary);
         }
 
-        .classroom-session-label {
-          font-size: 0.8rem;
+        .classroom-header-title {
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+          min-width: 0;
+        }
+
+        .classroom-header-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.62rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.07em;
           color: var(--text-muted);
-          font-family: monospace;
+        }
+
+        .classroom-header-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--success-color);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-color) 20%, transparent);
+        }
+
+        .classroom-topic {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .classroom-session-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-shrink: 0;
+          max-width: 16rem;
+          padding: 0.3rem 0.4rem 0.3rem 0.7rem;
+          border: 1px solid var(--border-color);
+          border-radius: 999px;
+          background: var(--bg-primary);
+          color: var(--text-muted);
+          cursor: pointer;
+          transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+
+        .classroom-session-chip:hover {
+          border-color: var(--accent-color);
+          color: var(--text-secondary);
+          box-shadow: var(--shadow-sm);
+        }
+
+        .classroom-session-chip-id {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 0.72rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .classroom-session-chip-action {
+          flex-shrink: 0;
+          font-size: 0.62rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          padding: 0.18rem 0.5rem;
+          border-radius: 999px;
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+
+        .classroom-session-chip:hover .classroom-session-chip-action {
+          background: var(--accent-color);
+          color: #fff;
+        }
+
+        .classroom-session-chip--copied,
+        .classroom-session-chip--copied:hover {
+          border-color: var(--success-color);
+          color: var(--success-color);
+        }
+
+        .classroom-session-chip--copied .classroom-session-chip-action,
+        .classroom-session-chip--copied:hover .classroom-session-chip-action {
+          background: var(--success-color);
+          color: #fff;
         }
 
         .roundtable-banner {
