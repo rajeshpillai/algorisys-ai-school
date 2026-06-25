@@ -179,16 +179,21 @@ const WhiteboardCanvas: Component<WhiteboardCanvasProps> = (props) => {
     <>
       <div class="whiteboard-canvas" ref={containerRef}>
         <div class="whiteboard-canvas-header">
-          <span class="whiteboard-canvas-label">Whiteboard</span>
+          <span class="whiteboard-canvas-label">
+            <span class="whiteboard-canvas-dot" aria-hidden="true" />
+            Whiteboard
+          </span>
           <div class="whiteboard-canvas-header-right">
-            <Show when={zoom() !== 1 || panX() !== 0 || panY() !== 0}>
-              <button class="whiteboard-canvas-zoom-btn" onClick={resetView} title="Fit to view">
-                Fit
-              </button>
-            </Show>
-            <span class="whiteboard-canvas-zoom-indicator" title="Zoom level">
-              {Math.round(zoom() * 100)}%
-            </span>
+            <div class="whiteboard-canvas-zoom-group">
+              <Show when={zoom() !== 1 || panX() !== 0 || panY() !== 0}>
+                <button class="whiteboard-canvas-zoom-btn" onClick={resetView} title="Fit to view">
+                  Fit
+                </button>
+              </Show>
+              <span class="whiteboard-canvas-zoom-indicator" title="Zoom level">
+                {Math.round(zoom() * 100)}%
+              </span>
+            </div>
             <button
               class="whiteboard-canvas-annotate-btn"
               classList={{ 'whiteboard-canvas-annotate-btn--active': drawMode() }}
@@ -240,18 +245,19 @@ const WhiteboardCanvas: Component<WhiteboardCanvasProps> = (props) => {
 
       <style>{`
         .whiteboard-canvas {
-          margin: 0.75rem 0;
+          margin: 1rem 0;
           border: 1px solid var(--border-color);
-          border-radius: 8px;
+          border-radius: var(--radius-lg);
           overflow: hidden;
           background: var(--bg-primary);
+          box-shadow: var(--shadow-md);
         }
 
         .whiteboard-canvas-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0.4rem 0.75rem;
+          padding: 0.6rem 0.9rem;
           border-bottom: 1px solid var(--border-color);
           background: var(--bg-secondary);
         }
@@ -259,54 +265,78 @@ const WhiteboardCanvas: Component<WhiteboardCanvasProps> = (props) => {
         .whiteboard-canvas-header-right {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.6rem;
         }
 
         .whiteboard-canvas-label {
-          font-size: 0.7rem;
-          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          font-size: 0.72rem;
+          font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--text-muted);
+          letter-spacing: 0.06em;
+          color: var(--text-secondary);
+        }
+
+        .whiteboard-canvas-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: var(--accent-color);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 18%, transparent);
+        }
+
+        .whiteboard-canvas-zoom-group {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.15rem;
+          border: 1px solid var(--border-color);
+          border-radius: 999px;
+          background: var(--bg-primary);
         }
 
         .whiteboard-canvas-zoom-indicator {
-          font-size: 0.65rem;
+          font-size: 0.68rem;
+          font-weight: 600;
           color: var(--text-muted);
-          min-width: 2.5rem;
+          min-width: 2.6rem;
           text-align: center;
         }
 
         .whiteboard-canvas-zoom-btn {
           font-size: 0.65rem;
           font-weight: 600;
-          padding: 0.15rem 0.4rem;
-          border: 1px solid var(--border-color);
-          border-radius: 3px;
-          background: var(--bg-tertiary);
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-
-        .whiteboard-canvas-zoom-btn:hover {
-          background: var(--bg-primary);
-        }
-
-        .whiteboard-canvas-annotate-btn {
-          font-size: 0.65rem;
-          font-weight: 600;
-          padding: 0.2rem 0.5rem;
-          border: 1px solid var(--border-color);
-          border-radius: 4px;
+          padding: 0.2rem 0.55rem;
+          border: none;
+          border-radius: 999px;
           background: var(--bg-tertiary);
           color: var(--text-secondary);
           cursor: pointer;
           transition: background 0.15s, color 0.15s;
         }
 
-        .whiteboard-canvas-annotate-btn:hover {
+        .whiteboard-canvas-zoom-btn:hover {
+          background: var(--accent-color);
+          color: #fff;
+        }
+
+        .whiteboard-canvas-annotate-btn {
+          font-size: 0.68rem;
+          font-weight: 600;
+          padding: 0.32rem 0.7rem;
+          border: 1px solid var(--border-color);
+          border-radius: 999px;
           background: var(--bg-primary);
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .whiteboard-canvas-annotate-btn:hover {
+          border-color: var(--accent-color);
+          color: var(--accent-color);
         }
 
         .whiteboard-canvas-annotate-btn--active {
@@ -321,6 +351,14 @@ const WhiteboardCanvas: Component<WhiteboardCanvasProps> = (props) => {
 
         .whiteboard-canvas-viewport {
           overflow: hidden;
+          min-height: 300px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: var(--bg-primary);
+          background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+          background-size: 22px 22px;
+          background-position: -11px -11px;
         }
 
         .whiteboard-canvas-viewport--pannable {
@@ -336,7 +374,7 @@ const WhiteboardCanvas: Component<WhiteboardCanvasProps> = (props) => {
         }
 
         .whiteboard-canvas-svg {
-          padding: 1rem;
+          padding: 1.5rem;
           display: flex;
           justify-content: center;
           overflow-x: auto;
