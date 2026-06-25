@@ -14,7 +14,8 @@ defmodule Backend.Classroom.LearnerState do
             topics_completed: [],
             quiz_history: [],
             recent_errors: [],
-            signals: %{}
+            signals: %{},
+            scaffold_level: "worked"
 
   @type t :: %__MODULE__{
           understanding_score: integer(),
@@ -27,8 +28,11 @@ defmodule Backend.Classroom.LearnerState do
           topics_completed: list(String.t()),
           quiz_history: list(map()),
           recent_errors: list(String.t()),
-          signals: map()
+          signals: map(),
+          scaffold_level: String.t()
         }
+
+  @scaffold_levels ["worked", "faded", "independent"]
 
   @doc "Convert the learner state to a map suitable for JSON encoding."
   def to_map(%__MODULE__{} = state) do
@@ -43,7 +47,8 @@ defmodule Backend.Classroom.LearnerState do
       topics_completed: state.topics_completed,
       quiz_history: state.quiz_history,
       recent_errors: state.recent_errors,
-      signals: state.signals
+      signals: state.signals,
+      scaffold_level: state.scaffold_level
     }
   end
 
@@ -62,7 +67,8 @@ defmodule Backend.Classroom.LearnerState do
       topics_completed: map["topics_completed"] || [],
       quiz_history: map["quiz_history"] || [],
       recent_errors: map["recent_errors"] || [],
-      signals: map["signals"] || %{}
+      signals: map["signals"] || %{},
+      scaffold_level: map["scaffold_level"] || "worked"
     }
   end
 
@@ -91,6 +97,52 @@ defmodule Backend.Classroom.LearnerState do
   end
 
   def merge_updates(%__MODULE__{} = state, _), do: state
+
+  @doc """
+  Step the `scaffold_level` fade based on the current `signals`.
+
+  This is the deterministic "fade" — worked example (I do) → faded/completion
+  example (we do) → independent problem (you do) — mirroring teachme's symmetric
+  success/failure rules:
+
+    - `mastery_detected` or `ready_to_advance` ⇒ advance one notch (show less).
+    - `needs_remediation` or `needs_simplification` ⇒ revert one notch (show more).
+    - otherwise unchanged.
+
+  Revert wins if both an advance and a revert signal are set (failure shrinks the
+  step). Levels clamp at the ends (`worked` ⇄ `independent`). Pure and idempotent
+  per call.
+  """
+  @spec recalc_scaffold(t()) :: t()
+  def recalc_scaffold(%__MODULE__{signals: signals, scaffold_level: level} = state)
+      when is_map(signals) do
+    %{state | scaffold_level: step_scaffold(level, signals)}
+  end
+
+  def recalc_scaffold(%__MODULE__{} = state), do: state
+
+  defp step_scaffold(level, signals) do
+    cond do
+      signals["needs_remediation"] == true or signals["needs_simplification"] == true ->
+        shift(level, -1)
+
+      signals["mastery_detected"] == true or signals["ready_to_advance"] == true ->
+        shift(level, +1)
+
+      true ->
+        level
+    end
+  end
+
+  defp shift(level, delta) do
+    idx = Enum.find_index(@scaffold_levels, &(&1 == level)) || 0
+    new_idx = idx + delta
+    Enum.at(@scaffold_levels, clamp_index(new_idx)) || level
+  end
+
+  defp clamp_index(i) when i < 0, do: 0
+  defp clamp_index(i) when i > 2, do: 2
+  defp clamp_index(i), do: i
 
   defp fetch(updates, key) do
     case Map.fetch(updates, key) do

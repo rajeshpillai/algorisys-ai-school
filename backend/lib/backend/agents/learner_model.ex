@@ -80,7 +80,7 @@ defmodule Backend.Agents.LearnerModel do
         normalized = normalize_updates(updates)
         signals = extract_signals(response)
         merged = LearnerState.merge_updates(prior_state, normalized)
-        {:ok, %{merged | signals: signals}}
+        {:ok, merged |> Map.put(:signals, signals) |> LearnerState.recalc_scaffold()}
 
       {:ok, other} ->
         Logger.error("LearnerModel learner_state is not a map: #{inspect(other)}")

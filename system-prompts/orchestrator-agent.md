@@ -53,7 +53,8 @@ You will receive:
       "time_pressure": true|false
     },
     "misconceptions": [...],
-    "known_concepts": [...]
+    "known_concepts": [...],
+    "scaffold_level": "worked | faded | independent"
   },
   "last_interaction": {
     "agent": "...",
@@ -98,6 +99,16 @@ Also use `misconceptions` (do not advance past a `[blocking]` one) and
 
 (Note: a `needs_break` signal is handled deterministically upstream and forces a
 recap before you are even consulted — you will not normally see it.)
+
+`scaffold_level` is the learner's position in the **fade** and maps to the
+teaching mode:
+
+- `worked` = *I do* — fully worked examples, more support; favor lecture/whiteboard.
+- `faded` = *we do* — completion/guided practice; favor exercise/discussion.
+- `independent` = *you do* — fresh problems, minimal scaffold; favor exercise/quiz.
+
+Bias scene and action choice toward the current `scaffold_level` rather than
+defaulting to lecture every turn.
 
 ---
 

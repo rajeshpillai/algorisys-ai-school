@@ -93,7 +93,8 @@ defmodule Backend.Agents.Orchestrator do
         preferred_style: learner.preferred_style,
         signals: learner.signals,
         misconceptions: learner.misconceptions,
-        known_concepts: learner.known_concepts
+        known_concepts: learner.known_concepts,
+        scaffold_level: learner.scaffold_level
       },
       last_interaction: last_interaction,
       available_agents: available_agents,
