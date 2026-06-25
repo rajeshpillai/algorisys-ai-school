@@ -13,7 +13,8 @@ defmodule Backend.Classroom.LearnerState do
             time_remaining: nil,
             topics_completed: [],
             quiz_history: [],
-            recent_errors: []
+            recent_errors: [],
+            signals: %{}
 
   @type t :: %__MODULE__{
           understanding_score: integer(),
@@ -25,7 +26,8 @@ defmodule Backend.Classroom.LearnerState do
           time_remaining: String.t() | nil,
           topics_completed: list(String.t()),
           quiz_history: list(map()),
-          recent_errors: list(String.t())
+          recent_errors: list(String.t()),
+          signals: map()
         }
 
   @doc "Convert the learner state to a map suitable for JSON encoding."
@@ -40,7 +42,8 @@ defmodule Backend.Classroom.LearnerState do
       time_remaining: state.time_remaining,
       topics_completed: state.topics_completed,
       quiz_history: state.quiz_history,
-      recent_errors: state.recent_errors
+      recent_errors: state.recent_errors,
+      signals: state.signals
     }
   end
 
@@ -58,7 +61,8 @@ defmodule Backend.Classroom.LearnerState do
       time_remaining: map["time_remaining"],
       topics_completed: map["topics_completed"] || [],
       quiz_history: map["quiz_history"] || [],
-      recent_errors: map["recent_errors"] || []
+      recent_errors: map["recent_errors"] || [],
+      signals: map["signals"] || %{}
     }
   end
 

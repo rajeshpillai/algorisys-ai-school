@@ -835,4 +835,24 @@ defmodule Backend.Classroom.SessionTest do
       assert get_raw_state(pid).state == :waiting
     end
   end
+
+  describe "deterministic_override/1" do
+    alias Backend.Classroom.LearnerState
+
+    test "forces a recap scene when needs_break is signalled" do
+      state = %LearnerState{signals: %{"needs_break" => true}}
+
+      assert decision = Session.deterministic_override(state)
+      assert decision["next_action"]["scene"] == "recap"
+      assert decision["next_action"]["action_type"] == "recap"
+    end
+
+    test "returns nil when no override rule applies" do
+      assert Session.deterministic_override(%LearnerState{}) == nil
+
+      assert Session.deterministic_override(%LearnerState{
+               signals: %{"needs_break" => false, "ready_to_advance" => true}
+             }) == nil
+    end
+  end
 end

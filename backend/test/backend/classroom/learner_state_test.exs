@@ -99,6 +99,26 @@ defmodule Backend.Classroom.LearnerStateTest do
     end
   end
 
+  describe "signals field" do
+    test "defaults to an empty map" do
+      assert %LearnerState{}.signals == %{}
+      assert LearnerState.to_map(%LearnerState{}).signals == %{}
+    end
+
+    test "round-trips signals through to_map and from_map" do
+      original = %LearnerState{signals: %{"needs_break" => true, "ready_to_advance" => false}}
+
+      json_map = original |> LearnerState.to_map() |> Jason.encode!() |> Jason.decode!()
+      restored = LearnerState.from_map(json_map)
+
+      assert restored.signals == %{"needs_break" => true, "ready_to_advance" => false}
+    end
+
+    test "from_map defaults signals to %{} when absent" do
+      assert LearnerState.from_map(%{}).signals == %{}
+    end
+  end
+
   describe "merge_updates/2" do
     test "updates only the fields present in the partial map" do
       state = %LearnerState{understanding_score: 50, confidence: 60, preferred_style: "examples"}

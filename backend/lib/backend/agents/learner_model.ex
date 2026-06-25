@@ -3,9 +3,9 @@ defmodule Backend.Agents.LearnerModel do
   Evaluates learner state after a teaching turn.
 
   Calls the `learner-model` LLM with the prior state plus recent interactions and
-  returns an updated `LearnerState`. The LLM also produces signals and
-  recommendations; those are logged for now and not surfaced through the return
-  type (the plan reserves richer outputs for a follow-up).
+  returns an updated `LearnerState`. The LLM also produces adaptation signals,
+  which are both logged and captured onto `LearnerState.signals` so the
+  Orchestrator and deterministic gates can act on them.
   """
 
   require Logger
@@ -78,7 +78,9 @@ defmodule Backend.Agents.LearnerModel do
     case fetch_state(response) do
       {:ok, updates} when is_map(updates) ->
         normalized = normalize_updates(updates)
-        {:ok, LearnerState.merge_updates(prior_state, normalized)}
+        signals = extract_signals(response)
+        merged = LearnerState.merge_updates(prior_state, normalized)
+        {:ok, %{merged | signals: signals}}
 
       {:ok, other} ->
         Logger.error("LearnerModel learner_state is not a map: #{inspect(other)}")
@@ -95,6 +97,20 @@ defmodule Backend.Agents.LearnerModel do
       Map.has_key?(response, "learner_state") -> {:ok, Map.get(response, "learner_state")}
       Map.has_key?(response, :learner_state) -> {:ok, Map.get(response, :learner_state)}
       true -> :error
+    end
+  end
+
+  @doc false
+  # The LLM produces the current view of all 8 adaptation signals; we replace
+  # wholesale (no merge) and stringify keys so callers can read `signals["needs_break"]`
+  # regardless of whether the JSON arrived with string or atom keys.
+  defp extract_signals(response) do
+    case response["signals"] || response[:signals] do
+      signals when is_map(signals) ->
+        Map.new(signals, fn {k, v} -> {to_string(k), v} end)
+
+      _ ->
+        %{}
     end
   end
 
