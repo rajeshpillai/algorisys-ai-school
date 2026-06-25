@@ -26,6 +26,35 @@ defmodule Backend.Agents.LearnerModelTest do
       assert updated.topics_completed == ["intro"]
     end
 
+    test "surfaces signals onto the returned state (string keys, wholesale)" do
+      prior = %LearnerState{signals: %{"stale" => true}}
+
+      response = %{
+        "learner_state" => %{"understanding_score" => 60},
+        "signals" => %{"needs_break" => true, "ready_to_advance" => false}
+      }
+
+      assert {:ok, updated} = LearnerModel.apply_response(prior, response)
+      assert updated.signals == %{"needs_break" => true, "ready_to_advance" => false}
+    end
+
+    test "stringifies atom-keyed signals and defaults to %{} when absent" do
+      prior = %LearnerState{signals: %{"old" => true}}
+
+      assert {:ok, with_atoms} =
+               LearnerModel.apply_response(prior, %{
+                 "learner_state" => %{},
+                 signals: %{needs_break: true}
+               })
+
+      assert with_atoms.signals == %{"needs_break" => true}
+
+      assert {:ok, without} =
+               LearnerModel.apply_response(prior, %{"learner_state" => %{}})
+
+      assert without.signals == %{}
+    end
+
     test "preserves fields not mentioned by the LLM" do
       prior = %LearnerState{
         understanding_score: 80,

@@ -49,7 +49,8 @@ You will receive:
     "confidence": 0-100,
     "preferred_style": "...",
     "recent_errors": [...],
-    "time_remaining": "..."
+    "time_remaining": "...",
+    "scaffold_level": "worked | faded | independent"
   },
   "available_scene_types": [
     "lecture",
@@ -137,6 +138,22 @@ Each scene MUST:
 - map naturally to the selected action_type
 - consider learner background and preferred style
 - be executable by the runtime without ambiguity
+
+### Scaffold level (the fade)
+
+`learner_state.scaffold_level` sets how much support the scene provides. Design the
+scene's content and execution_steps to match it:
+
+- **worked** (*I do*): a fully worked example. Show every step with reasoning, plus
+  self-explanation prompts ("why does this step work?"). Maximum scaffolding.
+- **faded** (*we do*): a completion problem. Provide the worked example but blank out
+  the **last** step for the learner to fill in; blank earlier steps as they succeed.
+  Partial scaffolding.
+- **independent** (*you do*): pose a **fresh** problem for the learner to solve from
+  scratch. Minimal scaffolding — hints only on request.
+
+Honor `scaffold_level` even when it tensions with `understanding_score`; the level is
+the deliberately-faded progression, the score is just a snapshot.
 
 ---
 

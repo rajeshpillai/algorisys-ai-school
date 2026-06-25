@@ -518,22 +518,32 @@ defmodule Backend.Classroom.Session do
       }
 
       decision =
-        case Orchestrator.decide_next(orchestrator_input, llm_opts) do
-          {:ok, decision} ->
-            Logger.info("Orchestrator decision: #{inspect(decision["next_action"])}")
-            decision
+        case deterministic_override(learner_state) do
+          %{} = override ->
+            Logger.info(
+              "Orchestrator bypassed by deterministic override: #{override["override"]}"
+            )
 
-          {:error, reason} ->
-            Logger.error("Orchestrator failed: #{inspect(reason)}, using fallback")
+            override
 
-            %{
-              "next_action" => %{
-                "agent" => first_agent_name(agents),
-                "scene" => "lecture",
-                "action_type" => "explain"
-              },
-              "state_updates" => %{"focus_topic" => first_topic}
-            }
+          nil ->
+            case Orchestrator.decide_next(orchestrator_input, llm_opts) do
+              {:ok, decision} ->
+                Logger.info("Orchestrator decision: #{inspect(decision["next_action"])}")
+                decision
+
+              {:error, reason} ->
+                Logger.error("Orchestrator failed: #{inspect(reason)}, using fallback")
+
+                %{
+                  "next_action" => %{
+                    "agent" => first_agent_name(agents),
+                    "scene" => "lecture",
+                    "action_type" => "explain"
+                  },
+                  "state_updates" => %{"focus_topic" => first_topic}
+                }
+            end
         end
 
       next_action = decision["next_action"] || %{}
@@ -589,22 +599,32 @@ defmodule Backend.Classroom.Session do
       }
 
       decision =
-        case Orchestrator.decide_next(orchestrator_input, llm_opts) do
-          {:ok, decision} ->
-            Logger.info("Orchestrator decision: #{inspect(decision["next_action"])}")
-            decision
+        case deterministic_override(learner_state) do
+          %{} = override ->
+            Logger.info(
+              "Orchestrator bypassed by deterministic override: #{override["override"]}"
+            )
 
-          {:error, reason} ->
-            Logger.error("Orchestrator failed: #{inspect(reason)}, using fallback")
+            override
 
-            %{
-              "next_action" => %{
-                "agent" => first_agent_name(agents),
-                "scene" => "lecture",
-                "action_type" => "explain"
-              },
-              "state_updates" => %{"focus_topic" => current_topic}
-            }
+          nil ->
+            case Orchestrator.decide_next(orchestrator_input, llm_opts) do
+              {:ok, decision} ->
+                Logger.info("Orchestrator decision: #{inspect(decision["next_action"])}")
+                decision
+
+              {:error, reason} ->
+                Logger.error("Orchestrator failed: #{inspect(reason)}, using fallback")
+
+                %{
+                  "next_action" => %{
+                    "agent" => first_agent_name(agents),
+                    "scene" => "lecture",
+                    "action_type" => "explain"
+                  },
+                  "state_updates" => %{"focus_topic" => current_topic}
+                }
+            end
         end
 
       next_action = decision["next_action"] || %{}
@@ -1211,6 +1231,39 @@ defmodule Backend.Classroom.Session do
   defp generate_id do
     :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
   end
+
+  @doc """
+  A deterministic pre-filter over the orchestration LLM.
+
+  Returns a decision map (same shape as `Orchestrator.decide_next/1` output) when a
+  hard rule fires, or `nil` when the orchestrator LLM should decide as usual. This
+  is the "rules over judgment" spine: cheap, certain gates that don't depend on the
+  LLM making a good call every turn.
+
+  Public so the gate rules are unit-testable without a GenServer or LLM. Keep it pure.
+
+  Current rules (conservative — extend as needed):
+    - `needs_break` signal ⇒ force a `recap` scene and skip the LLM entirely.
+
+  The decision intentionally omits `next_action.agent`; callers fall back to
+  `first_agent_name/1`.
+  """
+  @spec deterministic_override(LearnerState.t()) :: map() | nil
+  def deterministic_override(%LearnerState{signals: signals}) when is_map(signals) do
+    cond do
+      signals["needs_break"] == true ->
+        %{
+          "next_action" => %{"scene" => "recap", "action_type" => "recap"},
+          "state_updates" => %{},
+          "override" => "needs_break"
+        }
+
+      true ->
+        nil
+    end
+  end
+
+  def deterministic_override(_), do: nil
 
   defp first_agent_name([agent | _]), do: agent["name"] || "Teacher"
   defp first_agent_name(_), do: "Teacher"

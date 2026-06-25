@@ -90,7 +90,11 @@ defmodule Backend.Agents.Orchestrator do
         fatigue: learner.fatigue,
         recent_errors: learner.recent_errors,
         time_remaining: learner.time_remaining || "unlimited",
-        preferred_style: learner.preferred_style
+        preferred_style: learner.preferred_style,
+        signals: learner.signals,
+        misconceptions: learner.misconceptions,
+        known_concepts: learner.known_concepts,
+        scaffold_level: learner.scaffold_level
       },
       last_interaction: last_interaction,
       available_agents: available_agents,

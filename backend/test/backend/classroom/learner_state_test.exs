@@ -99,6 +99,85 @@ defmodule Backend.Classroom.LearnerStateTest do
     end
   end
 
+  describe "signals field" do
+    test "defaults to an empty map" do
+      assert %LearnerState{}.signals == %{}
+      assert LearnerState.to_map(%LearnerState{}).signals == %{}
+    end
+
+    test "round-trips signals through to_map and from_map" do
+      original = %LearnerState{signals: %{"needs_break" => true, "ready_to_advance" => false}}
+
+      json_map = original |> LearnerState.to_map() |> Jason.encode!() |> Jason.decode!()
+      restored = LearnerState.from_map(json_map)
+
+      assert restored.signals == %{"needs_break" => true, "ready_to_advance" => false}
+    end
+
+    test "from_map defaults signals to %{} when absent" do
+      assert LearnerState.from_map(%{}).signals == %{}
+    end
+  end
+
+  describe "scaffold_level field" do
+    test "defaults to \"worked\"" do
+      assert %LearnerState{}.scaffold_level == "worked"
+      assert LearnerState.to_map(%LearnerState{}).scaffold_level == "worked"
+    end
+
+    test "round-trips through to_map and from_map" do
+      original = %LearnerState{scaffold_level: "faded"}
+      json_map = original |> LearnerState.to_map() |> Jason.encode!() |> Jason.decode!()
+      assert LearnerState.from_map(json_map).scaffold_level == "faded"
+    end
+
+    test "from_map defaults to \"worked\" when absent" do
+      assert LearnerState.from_map(%{}).scaffold_level == "worked"
+    end
+  end
+
+  describe "recalc_scaffold/1" do
+    test "advances one notch on mastery_detected" do
+      assert recalc("worked", %{"mastery_detected" => true}) == "faded"
+      assert recalc("faded", %{"mastery_detected" => true}) == "independent"
+    end
+
+    test "advances one notch on ready_to_advance" do
+      assert recalc("worked", %{"ready_to_advance" => true}) == "faded"
+    end
+
+    test "does not advance past independent" do
+      assert recalc("independent", %{"mastery_detected" => true}) == "independent"
+    end
+
+    test "reverts one notch on needs_remediation" do
+      assert recalc("independent", %{"needs_remediation" => true}) == "faded"
+      assert recalc("faded", %{"needs_remediation" => true}) == "worked"
+    end
+
+    test "reverts one notch on needs_simplification" do
+      assert recalc("independent", %{"needs_simplification" => true}) == "faded"
+    end
+
+    test "does not revert below worked" do
+      assert recalc("worked", %{"needs_remediation" => true}) == "worked"
+    end
+
+    test "leaves level unchanged when no relevant signal is set" do
+      assert recalc("faded", %{}) == "faded"
+      assert recalc("worked", %{"needs_encouragement" => true}) == "worked"
+    end
+
+    test "revert wins when advance and revert signals are both set" do
+      assert recalc("independent", %{"mastery_detected" => true, "needs_remediation" => true}) ==
+               "faded"
+    end
+
+    defp recalc(level, signals) do
+      LearnerState.recalc_scaffold(%LearnerState{scaffold_level: level, signals: signals}).scaffold_level
+    end
+  end
+
   describe "merge_updates/2" do
     test "updates only the fields present in the partial map" do
       state = %LearnerState{understanding_score: 50, confidence: 60, preferred_style: "examples"}

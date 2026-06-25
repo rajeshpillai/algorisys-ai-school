@@ -78,7 +78,8 @@ defmodule Backend.Agents.SceneEngine do
         confidence: learner_state.confidence,
         preferred_style: learner_state.preferred_style,
         recent_errors: learner_state.recent_errors,
-        time_remaining: learner_state.time_remaining || "unlimited"
+        time_remaining: learner_state.time_remaining || "unlimited",
+        scaffold_level: learner_state.scaffold_level
       },
       available_scene_types: @available_scene_types,
       available_skills: @available_skills
